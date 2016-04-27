@@ -1,12 +1,7 @@
 # Copyright © 2009-2016 Inria.  All rights reserved.
 # Copyright © 2009-2013 Université Bordeaux
 # Copyright © 2009-2014 Cisco Systems, Inc.  All rights reserved.
-#
-# $COPYRIGHT$$
-#
-# Additional copyrights may follow
 # See COPYING in top-level directory.
-#
 
 AM_CPPFLAGS = $(HWLOC_CPPFLAGS)
 

@@ -33,9 +33,9 @@ EOF])
     # These flags are specific to netloc, and should not be redundant
     # with hwloc.  I.e., if the flag already exists in hwloc, there's
     # no need to put it here.
-    NETLOC_CFLAGS=
-    NETLOC_CPPFLAGS=
-    NETLOC_LDFLAGS=
+    NETLOC_CFLAGS=$HWLOC_CFLAGS
+    NETLOC_CPPFLAGS=$HWLOC_CPPFLAGS
+    NETLOC_LDFLAGS=$HWLOC_LDFLAGS
     NETLOC_LIBS=
     NETLOC_LIBS_PRIVATE=
 

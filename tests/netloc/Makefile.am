@@ -7,7 +7,7 @@
 
 AM_CFLAGS = $(NETLOC_CFLAGS)
 AM_CPPFLAGS = $(NETLOC_CPPFLAGS)
-AM_LDFLAGS = $(NETLOC_LDFLAGS)
+AM_LDFLAGS = $(NETLOC_LDFLAGS) -lpthread
 
 LDADD = $(top_builddir)/netloc/libnetloc.la \
         $(top_builddir)/netloc/libnetlocscotch.la \

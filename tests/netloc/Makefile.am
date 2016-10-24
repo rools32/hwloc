@@ -13,6 +13,7 @@ LDADD = $(top_builddir)/netloc/libnetloc.la \
         $(top_builddir)/netloc/libnetlocscotch.la \
         -lscotch -lscotcherr
 
+if FOUND_XZ
 TESTS = \
         data/tests_extract.txt \
         data/tests_draw.txt
@@ -35,6 +36,7 @@ EXTRA_DIST += \
         data/scotch/resources.txt \
         data/scotch/arch.scotch \
         data/scotch/subarch.scotch
+endif
 endif
 
 TEST_EXTENSIONS = .txt

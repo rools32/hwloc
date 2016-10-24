@@ -98,4 +98,7 @@ AC_DEFUN([NETLOC_DO_AM_CONDITIONALS], [
     AC_CHECK_HEADERS([mpi.h],
             [mpi_found_headers=yes; break;])
     AM_CONDITIONAL([BUILD_MPITOOLS], [test "x$mpi_found_headers" = "xyes"])
+
+    AC_CHECK_PROG([xz],[xz],[yes],[no])
+    AM_CONDITIONAL([FOUND_XZ], [test "x$xz" = xyes])
 ])dnl

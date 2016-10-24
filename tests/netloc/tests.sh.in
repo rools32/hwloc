@@ -71,7 +71,7 @@ set -e
 
 compress=xz
 hash $compress 2>/dev/null || \
-    { echo >&2 "It requires $compressbin but it's not installed."; exit 1; }
+    { echo >&2 "It requires $compress but it's not installed."; exit 1; }
 COMPRESS=$(which $compress)
 GREP=$(which grep)
 SED=$(which sed)

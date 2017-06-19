@@ -231,17 +231,35 @@ int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph,
     SCOTCH_Arch scotch_arch;
     SCOTCH_Arch scotch_subarch;
     netlocscotch_core_t *cores = NULL;
-    netloc_arch_t *arch = netloc_arch_construct();
+
+    // Get current resources
+    int num_nodes;
+    char **nodenames;
+    int *slot_idx;
+    int *slot_list;
+    int *rank_list;
+
+    ret = get_current_resources(&num_nodes, &nodenames, &slot_idx, &slot_list,
+            &rank_list);
+    if (ret != NETLOC_SUCCESS || num_nodes <= 0)
+        assert(0);
+
+    int SCOTCH archTorus3 (&scotch_arch,
+            const SCOTCH Num
+            const SCOTCH Num
+            const SCOTCH Num archptr,
+            xdimval,
+            ydimval,
+            zdimval)
     ret = build_current_arch(&scotch_arch, &scotch_subarch, arch);
     if (NETLOC_SUCCESS != ret) {
         netloc_arch_destruct(arch);
         return ret;
     }
+    // XXX remove arch
 
     NETLOC_int graph_size;
     SCOTCH_graphSize(graph, &graph_size, NULL);
-
-    int num_hosts = arch->num_current_hosts;
 
     SCOTCH_Strat strategy;
     SCOTCH_stratInit(&strategy);
@@ -265,80 +283,72 @@ int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph,
 
     cores = (netlocscotch_core_t *)
         malloc(graph_size*sizeof(netlocscotch_core_t));
-    if (!arch->has_slots) {
-        /* We have the mapping but only for the nodes, not inside the nodes */
 
-        UT_array *process_by_node[num_hosts];
-        for (int n = 0; n < num_hosts; n++) {
-            utarray_new(process_by_node[n], &ut_int_icd);
+
+
+
+
+    UT_array *process_by_node[num_hosts];
+    for (int n = 0; n < num_hosts; n++) {
+        utarray_new(process_by_node[n], &ut_int_icd);
+    }
+
+    /* Find the processes mapped to the nodes */
+    for (int p = 0; p < graph_size; p++) {
+        int rank = ranks[p];
+        if (rank >= num_hosts || rank < 0) {
+            ret = NETLOC_ERROR;
+            goto ERROR;
+        }
+        utarray_push_back(process_by_node[rank], &p);
+    }
+
+    /* Use the intranode topology */
+    for (int n = 0; n < num_hosts; n++) {
+        int *process_list = (int *)process_by_node[n]->d;
+        int num_processes = utarray_len(process_by_node[n]);
+        netloc_arch_node_t *node =
+            arch->node_slot_by_idx[arch->current_hosts[n]].node;
+        NETLOC_int node_ranks[num_processes];
+
+        /* We need to extract the subgraph with only the vertices mapped to the
+         * current node */
+        SCOTCH_Graph nodegraph; /* graph with only elements for node n */
+        build_subgraph(graph, process_list, num_processes, &nodegraph);
+
+        /* Build the scotch arch of the all node */
+        SCOTCH_Arch scotch_nodearch;
+        ret = arch_tree_to_scotch_arch(node->slot_tree, &scotch_nodearch);
+        if (NETLOC_SUCCESS != ret) {
+            goto ERROR;
         }
 
-        /* Find the processes mapped to the nodes */
-        for (int p = 0; p < graph_size; p++) {
-            int rank = ranks[p];
-            if (rank >= num_hosts || rank < 0) {
-                ret = NETLOC_ERROR;
-                goto ERROR;
-            }
-            utarray_push_back(process_by_node[rank], &p);
+        /* Restrict the scotch arch to the available cores */
+        SCOTCH_Arch scotch_nodesubarch;
+        ret = build_subarch(&scotch_nodearch, node->num_current_slots,
+                node->current_slots, &scotch_nodesubarch);
+        if (NETLOC_SUCCESS != ret) {
+            goto ERROR;
         }
 
-        /* Use the intranode topology */
-        for (int n = 0; n < num_hosts; n++) {
-            int *process_list = (int *)process_by_node[n]->d;
-            int num_processes = utarray_len(process_by_node[n]);
-            netloc_arch_node_t *node =
-                arch->node_slot_by_idx[arch->current_hosts[n]].node;
-            NETLOC_int node_ranks[num_processes];
-
-            /* We need to extract the subgraph with only the vertices mapped to the
-             * current node */
-            SCOTCH_Graph nodegraph; /* graph with only elements for node n */
-            build_subgraph(graph, process_list, num_processes, &nodegraph);
-
-            /* Build the scotch arch of the all node */
-            SCOTCH_Arch scotch_nodearch;
-            ret = arch_tree_to_scotch_arch(node->slot_tree, &scotch_nodearch);
-            if (NETLOC_SUCCESS != ret) {
-                goto ERROR;
-            }
-
-            /* Restrict the scotch arch to the available cores */
-            SCOTCH_Arch scotch_nodesubarch;
-            ret = build_subarch(&scotch_nodearch, node->num_current_slots,
-                    node->current_slots, &scotch_nodesubarch);
-            if (NETLOC_SUCCESS != ret) {
-                goto ERROR;
-            }
-
-            /* Find the mapping to the cores */
-            ret = SCOTCH_graphMap(&nodegraph, &scotch_nodesubarch, &strategy, node_ranks);
-            if (ret != 0) {
-                fprintf(stderr, "Error: SCOTCH_graphMap failed\n");
-                goto ERROR;
-            }
-
-            /* Report the node ranks in the global rank array */
-            for (int p = 0; p < num_processes; p++) {
-                int process = process_list[p];
-                int arch_idx = node->current_slots[node_ranks[p]];
-                cores[process].core = node->slot_os_idx[arch_idx];
-                cores[process].nodename = strdup(node->node->hostname);
-                cores[process].rank = node->slot_ranks[node_ranks[p]];
-            }
+        /* Find the mapping to the cores */
+        ret = SCOTCH_graphMap(&nodegraph, &scotch_nodesubarch, &strategy, node_ranks);
+        if (ret != 0) {
+            fprintf(stderr, "Error: SCOTCH_graphMap failed\n");
+            goto ERROR;
         }
-        for (int n = 0; n < num_hosts; n++) {
-            utarray_free(process_by_node[n]);
+
+        /* Report the node ranks in the global rank array */
+        for (int p = 0; p < num_processes; p++) {
+            int process = process_list[p];
+            int arch_idx = node->current_slots[node_ranks[p]];
+            cores[process].core = node->slot_os_idx[arch_idx];
+            cores[process].nodename = strdup(node->node->hostname);
+            cores[process].rank = node->slot_ranks[node_ranks[p]];
         }
-    } else {
-        for (int p = 0; p < graph_size; p++) {
-            int host_idx = arch->current_hosts[ranks[p]];
-            netloc_arch_node_t *node = arch->node_slot_by_idx[host_idx].node;
-            int slot_rank = arch->node_slot_by_idx[host_idx].slot;
-            cores[p].nodename = strdup(node->node->hostname);
-            cores[p].core = node->slot_os_idx[node->slot_idx[slot_rank]];
-            cores[p].rank = node->slot_ranks[node->slot_idx[slot_rank]];
-        }
+    }
+    for (int n = 0; n < num_hosts; n++) {
+        utarray_free(process_by_node[n]);
     }
 
     *pcores = cores;

@@ -244,13 +244,15 @@ int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph,
     if (ret != NETLOC_SUCCESS || num_nodes <= 0)
         assert(0);
 
-    int SCOTCH archTorus3 (&scotch_arch,
-            const SCOTCH Num
-            const SCOTCH Num
-            const SCOTCH Num archptr,
-            xdimval,
-            ydimval,
-            zdimval)
+    int xdimval = ;
+    int ydimval = ;
+    int zdimval = ;
+    ret = SCOTCH_archTorus3 (&scotch_arch, xdimval, ydimval, zdimval)
+    if (ret != 0) {
+        fprintf(stderr, "Error: SCOTCH_archTorus3 failed\n");
+        goto ERROR;
+    }
+
     ret = build_current_arch(&scotch_arch, &scotch_subarch, arch);
     if (NETLOC_SUCCESS != ret) {
         netloc_arch_destruct(arch);

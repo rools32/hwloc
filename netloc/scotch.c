@@ -12,8 +12,10 @@
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <limits.h>
 #include <scotch.h>
 
 #include <netloc.h>
@@ -23,8 +25,8 @@
 
 static int arch_tree_to_scotch_arch(netloc_arch_tree_t *tree, SCOTCH_Arch *scotch);
 static int comm_matrix_to_scotch_graph(double **matrix, int n, SCOTCH_Graph *graph);
-static int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph,
-        netlocscotch_core_t **pcores);
+int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph, double **comm,
+        netlocscotch_core_t **pcores, int flags);
 
 static int compareint(void const *a, void const *b)
 {
@@ -223,8 +225,24 @@ int netlocscotch_build_current_arch(SCOTCH_Arch *arch, SCOTCH_Arch *subarch)
     return ret;
 }
 
-int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph,
-        netlocscotch_core_t **pcores)
+void filter_comm_matrix(int n, double **comm, double **new_comm)
+{
+    long int max = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            max = (comm[i][j] > max)? comm[i][j]: max;
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            new_comm[i][j] = (double)(int)(comm[i][j]/max*1000);
+        }
+    }
+}
+
+int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph, double **comm,
+        netlocscotch_core_t **pcores, int flags)
 {
     int ret;
 
@@ -250,18 +268,45 @@ int netlocscotch_get_mapping_from_graph(SCOTCH_Graph *graph,
     SCOTCH_stratGraphMapBuild(&strategy, SCOTCH_STRATQUALITY, graph_size, 0.01);
 
     /* The ranks are the indices of the nodes in the complete graph */
-    NETLOC_int *ranks = (NETLOC_int *)malloc(graph_size*sizeof(NETLOC_int));
-    ret = SCOTCH_graphMap(graph, &scotch_subarch, &strategy, ranks);
+    NETLOC_int *ranks = (NETLOC_int *)malloc(sizeof(NETLOC_int[graph_size]));
+    NETLOC_int *min_ranks = (NETLOC_int *)malloc(sizeof(NETLOC_int[graph_size]));
+
+    long int min_hb = LONG_MAX;
+    int nb_iter = 1;
+    if (flags & NETLOCSCOTCH_MIN_HB)
+        nb_iter = 100;
+    // TODO: Add loop with x iteractions (defined by ENV) of placement and keep min
+
+    for (int i = 0; i < nb_iter; i++) {
+        ret = SCOTCH_graphMap(graph, &scotch_subarch, &strategy, ranks);
+        if (ret != 0) {
+            fprintf(stderr, "Error: SCOTCH_graphMap failed\n");
+            SCOTCH_stratExit(&strategy);
+            SCOTCH_archExit(&scotch_subarch);
+            SCOTCH_archExit(&scotch_arch);
+            goto ERROR;
+        }
+
+        if (flags & NETLOCSCOTCH_MIN_HB) {
+            long int hb = arch_get_hopbyte(arch, graph_size, comm, ranks);
+            printf("HB: %ld\n", hb);
+            if (hb < min_hb) {
+                min_hb = hb;
+                memcpy(min_ranks, ranks, sizeof(NETLOC_int[graph_size]));
+            }
+        }
+    }
+
+    if (flags & NETLOCSCOTCH_MIN_HB) {
+        long int hb_rr = netloc_get_hopbyte(graph_size, comm, NULL);
+        printf("-> min HB: %ld (for RR: %ld)\n", min_hb, hb_rr);
+        free(ranks);
+        ranks = min_ranks;
+    }
 
     SCOTCH_stratExit(&strategy);
-
     SCOTCH_archExit(&scotch_subarch);
     SCOTCH_archExit(&scotch_arch);
-
-    if (ret != 0) {
-        fprintf(stderr, "Error: SCOTCH_graphMap failed\n");
-        goto ERROR;
-    }
 
     cores = (netlocscotch_core_t *)
         malloc(graph_size*sizeof(netlocscotch_core_t));
@@ -352,18 +397,35 @@ ERROR:
     return ret;
 }
 
-int netlocscotch_get_mapping_from_comm_matrix(double **comm, int num_vertices,
-        netlocscotch_core_t **pcores)
+int netlocscotch_get_mapping_from_comm_matrix(double **comm, int ncomm,
+        netlocscotch_core_t **pcores, int flags)
 {
     int ret;
 
+    double **filt_comm;
+    if (flags & NETLOCSCOTCH_FILTER) {
+        filt_comm = (double **)malloc(sizeof(double *[ncomm]));
+        double *mat_values = (double *)malloc(sizeof(double[ncomm*ncomm]));
+        for (int i = 0; i < ncomm; i++) {
+            filt_comm[i] = &mat_values[i*ncomm];
+        }
+        filter_comm_matrix(ncomm, comm, filt_comm);
+    } else { /* Filtered matrix is the same */
+        filt_comm = comm;
+    }
+
+
     SCOTCH_Graph graph;
-    ret = comm_matrix_to_scotch_graph(comm, num_vertices, &graph);
+    ret = comm_matrix_to_scotch_graph(filt_comm, ncomm, &graph);
     if (NETLOC_SUCCESS != ret) {
         return ret;
     }
 
-    ret = netlocscotch_get_mapping_from_graph(&graph, pcores);
+    if (filt_comm != comm) {
+        free(filt_comm);
+    }
+
+    ret = netlocscotch_get_mapping_from_graph(&graph, comm, pcores, flags);
 
     /* Free arrays */
     {
@@ -389,7 +451,7 @@ int netlocscotch_get_mapping_from_comm_matrix(double **comm, int num_vertices,
 }
 
 int netlocscotch_get_mapping_from_comm_file(char *filename, int *pnum_processes,
-        netlocscotch_core_t **pcores)
+        netlocscotch_core_t **pcores, int flags)
 {
     int ret;
     int n;
@@ -403,7 +465,7 @@ int netlocscotch_get_mapping_from_comm_file(char *filename, int *pnum_processes,
 
     *pnum_processes = n;
 
-    ret = netlocscotch_get_mapping_from_comm_matrix(mat, n, pcores);
+    ret = netlocscotch_get_mapping_from_comm_matrix(mat, n, pcores, flags);
 
     free(mat[0]);
     free(mat);

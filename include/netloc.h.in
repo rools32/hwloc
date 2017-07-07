@@ -23,6 +23,15 @@
 
 #include <hwloc.h>
 
+#undef NETLOC_SCOTCH
+#ifdef NETLOC_SCOTCH
+#include <stdint.h>
+#include <scotch.h>
+#define NETLOC_int SCOTCH_Num
+#else
+#define NETLOC_int int
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,6 +55,7 @@ enum {
     NETLOC_ERROR_MAX       = -9  /**< Error: Enum upper bound marker. No errors less than this number Will not be returned externally. */
 };
 
+long int netloc_get_hopbyte(int num_ranks, double **comm, NETLOC_int *placement);
 
 #ifdef __cplusplus
 } /* extern "C" */

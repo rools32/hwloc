@@ -23,14 +23,6 @@
 
 #define NETLOCFILE_VERSION 1
 
-#ifdef NETLOC_SCOTCH
-#include <stdint.h>
-#include <scotch.h>
-#define NETLOC_int SCOTCH_Num
-#else
-#define NETLOC_int int
-#endif
-
 /*
  * "Import" a few things from hwloc
  */
@@ -520,6 +512,18 @@ NETLOC_int netloc_arch_tree_num_leaves(netloc_arch_tree_t *tree);
     for ((link) = (netloc_physical_link_t **)utarray_front(path->links); \
             (link) != NULL; \
             (link) = (netloc_physical_link_t **)utarray_next(path->links, link))
+
+/**********************************************************************
+ *        Metrics functions
+ **********************************************************************/
+long int arch_get_hopbyte(netloc_arch_t *arch, int num_ranks, double **comm,
+        NETLOC_int *placement);
+
+/**********************************************************************
+ *        Tree functions
+ **********************************************************************/
+int tree_computeDistance(int size, NETLOC_int *tree, int idx1, int idx2);
+
 
 /**********************************************************************
  *        Misc functions

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Inria.  All rights reserved.
+ * Copyright © 2016-2017 Inria.  All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -30,7 +30,8 @@ int main(int argc, char **argv)
     comm_filename = argv[1];
     rank_filename = argv[2];
 
-    ret = netlocscotch_get_mapping_from_comm_file(comm_filename, &num_processes, &cores);
+    ret = netlocscotch_get_mapping_from_comm_file(comm_filename, &num_processes,
+            &cores, NETLOCSCOTCH_MIN_HB | NETLOCSCOTCH_FILTER);
 
     if (ret != NETLOC_SUCCESS) {
         fprintf(stderr, "Error: netlocscotch_get_mapping_from_comm_file failed\n");

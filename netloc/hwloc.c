@@ -240,7 +240,7 @@ int netloc_arch_node_get_hwloc_info(netloc_arch_node_t *arch_node)
         utarray_push_back(ordered_host_array, &current_object->os_index);
         current_object = current_object->next_cousin;
     }
-    ordered_hosts = (int *)ordered_host_array->d;;
+    ordered_hosts = (int *)ordered_host_array->d;
 
     /* Weight for the edges in the tree */
     NETLOC_int *cost = (NETLOC_int *)malloc((depth-1)*sizeof(NETLOC_int));

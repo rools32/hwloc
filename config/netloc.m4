@@ -106,6 +106,7 @@ AC_DEFUN([NETLOC_CHECK_PLATFORM], [
             break;])
 
     AC_CHECK_PROG([xz],[xz],[yes],[no])
+    AC_CONFIG_HEADERS(netloc_config_prefix[include/netloc.h])
 ])dnl
 
 AC_DEFUN([NETLOC_DO_AM_CONDITIONALS], [

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Inria.  All rights reserved.
+ * Copyright © 2016-2017 Inria.  All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -63,6 +63,9 @@ int netlocscotch_build_global_arch(SCOTCH_Arch *arch);
  */
 int netlocscotch_build_current_arch(SCOTCH_Arch *arch, SCOTCH_Arch *subarch);
 
+int NETLOCSCOTCH_MIN_HB = 1 << 0;
+int NETLOCSCOTCH_FILTER = 1 << 1;
+
 /**
  * \brief Give a good mapping with Scotch from a file containing a
  * communication matrix
@@ -83,11 +86,14 @@ int netlocscotch_build_current_arch(SCOTCH_Arch *arch, SCOTCH_Arch *subarch);
  *
  * \param[out] pcores Array of pnum_processes elements.
  *
- * \returns 0 on succes 
+ * \param[in] flags Flags to set options. NETLOCSCOTCH_MIN_HB for having
+ * several Scotch mapping and keeping the result with best Hop Byte.
+ *
+ * \returns 0 on succes
  * \returns NETLOC_ERROR on error
  */
 int netlocscotch_get_mapping_from_comm_file(char *filename, int *pnum_processes,
-        netlocscotch_core_t **pcores);
+        netlocscotch_core_t **pcores, int flags);
 
 /**
  * \brief Give a good mapping with Scotch from a communication matrix
@@ -111,7 +117,7 @@ int netlocscotch_get_mapping_from_comm_file(char *filename, int *pnum_processes,
  * \returns NETLOC_ERROR on error
  */
 int netlocscotch_get_mapping_from_comm_matrix(double **comm, int num_vertices,
-        netlocscotch_core_t **pcores);
+        netlocscotch_core_t **pcores, int flags);
 
 #ifdef __cplusplus
 } /* extern "C" */

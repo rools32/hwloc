@@ -89,7 +89,7 @@ dox_inputs = $(DOX_CONFIG) \
        $(hwloc_include_dir)/hwloc/openfabrics-verbs.h \
        $(hwloc_include_dir)/hwloc/myriexpress.h \
        $(srcdir)/netloc.doxy \
-       $(hwloc_include_dir)/netloc.h
+       $(top_builddir)/include/netloc.h
 
 #
 # Create the images that we need for the PDF output and the HTML

@@ -10,6 +10,8 @@
  */
 
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
+#include <unistd.h>
+#include <string.h>
 #include <private/netloc.h>
 #include <netloc.h>
 
@@ -19,6 +21,7 @@ typedef struct netloc_analysis_data_t {
 } netloc_analysis_data;
 
 
+static void tree_idx_to_coords(int num_levels, int *dims, int idx, int *coords);
 static int partition_topology_to_tleaf(netloc_topology_t *topology,
         int partition, int num_cores, netloc_arch_t *arch);
 static netloc_arch_tree_t *tree_merge(netloc_arch_tree_t *main,
@@ -34,6 +37,58 @@ static netloc_arch_node_t *netloc_arch_node_construct(void);
         goto ERROR; \
     }
 
+static void tree_idx_to_coords(int num_levels, int *dims, int idx, int *coords)
+{
+    for (int l = num_levels-1; l >= 0; l--) {
+        coords[l] = idx%dims[l];
+        idx /= dims[l];
+    }
+}
+
+/* Only work for trees XXX */
+int netloc_get_network_coords(int *pndims, int **pdims, int **pcoords)
+{
+    int ret;
+    netloc_arch_t *arch = netloc_arch_construct();
+    ret = netloc_arch_build(arch, 0); /* do not add slots */
+    if( NETLOC_SUCCESS != ret ) {
+        goto ERROR;
+    }
+
+    /* Get info about the whole topology */
+    netloc_arch_tree_t *tree = arch->arch.global_tree;
+    int ndims = tree->num_levels;
+    int *dims = (int *)malloc(sizeof(int[ndims]));
+    int *coords = (int *)malloc(sizeof(int[ndims]));
+    *pndims = ndims;
+    *pdims = dims;
+    *pcoords = coords;
+
+    for (int l = 0; l < ndims; l++)
+        dims[l] = tree->degrees[l];
+
+    /* Get info about the current process */
+    char hostname[HOST_NAME_MAX];
+    gethostname(hostname, sizeof(hostname));
+
+    netloc_arch_node_t *arch_node;
+    HASH_FIND_STR(arch->nodes_by_name, hostname, arch_node);
+    if (!arch_node) { /* node not found */
+        for (int l = 0; l < ndims; l++) {
+            dims[l] = -1;
+        }
+        ret = NETLOC_SUCCESS;
+        goto ERROR;
+    }
+
+    int idx = arch_node->idx_in_topo;
+    tree_idx_to_coords(ndims, dims, idx, coords);
+
+    ret = NETLOC_SUCCESS;
+ERROR:
+    netloc_arch_destruct(arch);
+    return ret;
+}
 
 /* Complete the topology to have a complete balanced tree  */
 void netloc_arch_tree_complete(netloc_arch_tree_t *tree, UT_array **down_degrees_by_level,

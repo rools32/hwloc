@@ -2,7 +2,7 @@
  * Copyright © 2013-2014 Cisco Systems, Inc.  All rights reserved.
  * Copyright © 2013-2014 University of Wisconsin-La Crosse.
  *                         All rights reserved.
- * Copyright © 2015-2016 Inria.  All rights reserved.
+ * Copyright © 2015-2017 Inria.  All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -45,6 +45,24 @@ enum {
     NETLOC_ERROR_NOT_FOUND = -8, /**< Error: No path found */
     NETLOC_ERROR_MAX       = -9  /**< Error: Enum upper bound marker. No errors less than this number Will not be returned externally. */
 };
+
+/**
+ * \brief Give the coordinates of the current node in the network.
+ *
+ * This function reads the topology defined by the environment variable
+ * NETLOC_TOPOFILE and the restriction defined by NETLOC_PARTITION.
+ *
+ * \param[out] ndims Number of dimensions of the topology.
+ *
+ * \param[out] dims Size of each dimension.
+ *
+ * \param[out] coords Array of coordinates.
+ * If the current node is not recognized, values will be -1.
+ *
+ * \returns 0 on success
+ * \returns NETLOC_ERROR on error
+ */
+int netloc_get_network_coords(int *ndims, int **dims, int **coords);
 
 
 #ifdef __cplusplus

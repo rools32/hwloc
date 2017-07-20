@@ -1,4 +1,4 @@
-# Copyright © 2009-2016 Inria.  All rights reserved.
+# Copyright © 2009-2017 Inria.  All rights reserved.
 # Copyright © 2009-2010 Université Bordeaux
 # Copyright © 2009-2014 Cisco Systems, Inc.  All rights reserved.
 # Copyright © 2011      Oracle and/or its affiliates.  All rights reserved.
@@ -10,8 +10,12 @@
 if HWLOC_BUILD_STANDALONE
 include_HEADERS = hwloc.h
 
+if BUILD_NETLOC
+include_HEADERS += netloc.h
+endif
+
 if BUILD_NETLOCSCOTCH
-include_HEADERS += netloc.h netlocscotch.h
+include_HEADERS += netlocscotch.h
 endif
 
 include_hwlocdir = $(includedir)/hwloc

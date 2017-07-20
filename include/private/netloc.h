@@ -294,10 +294,7 @@ struct netloc_arch_t {
     netloc_topology_t *topology;
     int has_slots; /* if slots are included in the architecture */
     netloc_arch_type_t type;
-    union {
-        netloc_arch_tree_t *node_tree;
-        netloc_arch_tree_t *global_tree;
-    } arch;
+    netloc_arch_tree_t *tree;
     netloc_arch_node_t *nodes_by_name;
     netloc_arch_node_slot_t *node_slot_by_idx; /* node_slot by index in complete topo */
     NETLOC_int num_current_hosts; /* if has_slots, host is a slot, else host is a node */

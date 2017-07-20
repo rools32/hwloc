@@ -281,10 +281,9 @@ int netloc_arch_set_current_resources(netloc_arch_t *arch)
     if (!arch->has_slots) {
         arch->num_current_hosts = num_nodes;
         arch->current_hosts = current_nodes;
-        arch->arch.global_tree = arch->arch.node_tree;
 
         /* Build nodes_by_idx */
-        NETLOC_int tree_size = netloc_arch_tree_num_leaves(arch->arch.node_tree);
+        NETLOC_int tree_size = netloc_arch_tree_num_leaves(arch->tree);
         netloc_arch_node_slot_t *nodes_by_idx = (netloc_arch_node_slot_t *)
             malloc(sizeof(netloc_arch_node_slot_t[tree_size]));
         for (int n = 0; n < num_nodes; n++) {
@@ -316,7 +315,7 @@ int netloc_arch_set_current_resources(netloc_arch_t *arch)
         }
 
         int current_host_idx = 0;
-        int node_tree_size = netloc_arch_tree_num_leaves(arch->arch.node_tree);
+        int node_tree_size = netloc_arch_tree_num_leaves(arch->tree);
         int global_tree_size = node_tree_size*slot_tree_size;
         netloc_arch_node_slot_t *nodes_by_idx = (netloc_arch_node_slot_t *)
             malloc(sizeof(netloc_arch_node_slot_t[global_tree_size]));
@@ -336,9 +335,9 @@ int netloc_arch_set_current_resources(netloc_arch_t *arch)
         arch->node_slot_by_idx = nodes_by_idx;
 
         netloc_arch_tree_t *new_tree =
-            tree_merge(arch->arch.node_tree, arch_node_list[0]->slot_tree);
-        netloc_arch_tree_destruct(arch->arch.node_tree);
-        arch->arch.global_tree = new_tree;
+            tree_merge(arch->tree, arch_node_list[0]->slot_tree);
+        netloc_arch_tree_destruct(arch->tree);
+        arch->tree = new_tree;
     }
 
 ERROR:
@@ -414,10 +413,9 @@ int netloc_arch_set_global_resources(netloc_arch_t *arch)
     if (!arch->has_slots) {
         arch->num_current_hosts = num_nodes;
         arch->current_hosts = current_nodes;
-        arch->arch.global_tree = arch->arch.node_tree;
 
         /* Build nodes_by_idx */
-        int tree_size = netloc_arch_tree_num_leaves(arch->arch.node_tree);
+        int tree_size = netloc_arch_tree_num_leaves(arch->tree);
         netloc_arch_node_slot_t *nodes_by_idx = (netloc_arch_node_slot_t *)
             malloc(sizeof(netloc_arch_node_slot_t[tree_size]));
         netloc_arch_node_t *node, *node_tmp;
@@ -449,7 +447,7 @@ int netloc_arch_set_global_resources(netloc_arch_t *arch)
         }
 
         int current_host_idx = 0;
-        int node_tree_size = netloc_arch_tree_num_leaves(arch->arch.node_tree);
+        int node_tree_size = netloc_arch_tree_num_leaves(arch->tree);
         int global_tree_size = node_tree_size*slot_tree_size;
         netloc_arch_node_slot_t *nodes_by_idx = (netloc_arch_node_slot_t *)
             malloc(sizeof(netloc_arch_node_slot_t[global_tree_size]));
@@ -470,9 +468,9 @@ int netloc_arch_set_global_resources(netloc_arch_t *arch)
         arch->node_slot_by_idx = nodes_by_idx;
 
         netloc_arch_tree_t *new_tree =
-            tree_merge(arch->arch.node_tree, arch->nodes_by_name->slot_tree);
-        netloc_arch_tree_destruct(arch->arch.node_tree);
-        arch->arch.global_tree = new_tree;
+            tree_merge(arch->tree, arch->nodes_by_name->slot_tree);
+        netloc_arch_tree_destruct(arch->tree);
+        arch->tree = new_tree;
     }
 
 ERROR:
@@ -529,7 +527,7 @@ int partition_topology_to_tleaf(netloc_topology_t *topology,
 
     netloc_arch_tree_t *tree = (netloc_arch_tree_t *)
         malloc(sizeof(netloc_arch_tree_t));
-    arch->arch.node_tree = tree;
+    arch->tree = tree;
     arch->type = NETLOC_ARCH_TREE;
 
     /* we build nodes from host list in the given partition
@@ -819,9 +817,9 @@ int netloc_arch_destruct(netloc_arch_t *arch)
         netloc_arch_node_destruct(node);
     }
 
-    free(arch->arch.node_tree->degrees);
-    free(arch->arch.node_tree->cost);
-    free(arch->arch.node_tree);
+    free(arch->tree->degrees);
+    free(arch->tree->cost);
+    free(arch->tree);
     free(arch->current_hosts);
     free(arch->node_slot_by_idx);
 

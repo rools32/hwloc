@@ -186,7 +186,7 @@ static int build_current_arch(SCOTCH_Arch *scotch_arch,
     }
 
     SCOTCH_archInit(scotch_arch);
-    ret = arch_tree_to_scotch_arch(arch->arch.global_tree, scotch_arch);
+    ret = arch_tree_to_scotch_arch(arch->tree, scotch_arch);
     if (NETLOC_SUCCESS != ret) {
         return ret;
     }

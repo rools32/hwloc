@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2017 Inria.  All rights reserved.
+ * Copyright © 2016-2018 Inria.  All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -352,6 +352,13 @@ netloc_network_explicit_find_partitions(utils_node_t *nodes,
     return ret;
 }
 
+static void set_all_partitions(int size, int *partitions)
+{
+    for (int p = 0; p < size; p++) {
+        partitions[p] = 1;
+    }
+}
+
 static int
 netloc_network_explicit_set_partitions(utils_node_t *nodes,
         UT_array *partitions, path_source_t *paths)
@@ -373,6 +380,8 @@ netloc_network_explicit_set_partitions(utils_node_t *nodes,
         }
     }
 
+    /* If we got paths */
+    if (paths) {
     /* Set the partitions for the physical links considering if there is in a
      * path between two nodes of a partition */
     path_source_t *path_src, *path_src_tmp;
@@ -406,6 +415,25 @@ netloc_network_explicit_set_partitions(utils_node_t *nodes,
                 link->partitions[partition] = 1;
                 link->parent_node->partitions[partition] = 1;
                 link->parent_edge->partitions[partition] = 1;
+            }
+        }
+    }
+    } else {
+        /* If no path is present we set all partitions for everyone to avoid a
+         * complex alorithm cimputing paths */
+        HASH_ITER(hh, nodes, node, node_tmp) {
+            if (node->type != NETLOC_NODE_TYPE_HOST)
+                set_all_partitions(utarray_len(partitions), node->partitions);
+
+            for (unsigned int l = 0; l < utarray_len(node->physical_links); l++) {
+                utils_physical_link_t *link = *(utils_physical_link_t **)
+                    utarray_eltptr(node->physical_links, l);
+                set_all_partitions(utarray_len(partitions), link->partitions);
+            }
+
+            utils_edge_t *edge, *edge_tmp;
+            HASH_ITER(hh, node->edges, edge, edge_tmp) {
+                set_all_partitions(utarray_len(partitions), edge->partitions);
             }
         }
     }

@@ -1,6 +1,6 @@
 dnl -*- Autoconf -*-
 dnl
-dnl Copyright © 2010-2017 Inria.  All rights reserved.
+dnl Copyright © 2010-2018 Inria.  All rights reserved.
 dnl Copyright © 2009, 2011 Université Bordeaux
 dnl Copyright © 2004-2005 The Trustees of Indiana University and Indiana
 dnl                         University Research and Technology
@@ -331,6 +331,7 @@ EOF
         hwloc_config_prefix[utils/netloc/Makefile]
         hwloc_config_prefix[utils/netloc/hardware/Makefile]
         hwloc_config_prefix[utils/netloc/hardware/infiniband/Makefile]
+        hwloc_config_prefix[utils/netloc/hardware/opa/Makefile]
         hwloc_config_prefix[utils/netloc/hardware/explicit/Makefile]
         hwloc_config_prefix[utils/netloc/export/Makefile]
         hwloc_config_prefix[utils/netloc/export/draw/Makefile]

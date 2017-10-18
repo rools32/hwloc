@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017      Inria.  All rights reserved.
+ * Copyright © 2017-2018 Inria.  All rights reserved.
  *
  * $COPYRIGHT$
  *
@@ -17,7 +17,7 @@
 #include <netloc/uthash.h>
 #include <netloc/utarray.h>
 
-#define MAX_STR 20
+#define MAX_STR 25
 
 struct utils_partition_t;
 typedef struct utils_partition_t utils_partition_t;
@@ -60,6 +60,7 @@ struct utils_node_t {
     long logical_id;
     netloc_node_type_t type;
     char *description;
+    int port_num;
     utils_edge_t *edges;
     int main_partition;
     char *hostname;
@@ -75,12 +76,15 @@ struct utils_partition_t {
 };
 
 struct utils_physical_link_t {
+    UT_hash_handle hh;         /* makes this structure hashable */
     unsigned long long int int_id;
+    char str_id[MAX_STR];
     int ports[2];
     utils_node_t *dest;
     char *width;
     char *speed;
     float gbits;
+    char *subnet;
     char *description;
     int *partitions;
     utils_physical_link_t *other_link;

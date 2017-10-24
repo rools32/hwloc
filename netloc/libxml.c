@@ -776,7 +776,8 @@ static int netloc_xml_reader_clean_and_out(xmlDoc *doc)
      * Free the global variables that may
      * have been allocated by the parser.
      */
-    xmlCleanupParser();
+    if (getenv("NETLOC_LIBXML_CLEANUP"))
+        xmlCleanupParser();
 
     return NETLOC_SUCCESS;
 }

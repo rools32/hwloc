@@ -30,6 +30,19 @@
  */
 int netloc_topology_xml_load(char *path, netloc_topology_t **ptopology);
 
+/**
+ * Check whether warnings and errors should be reported in stderr in
+ * addition to the return codes. If the build is not for in debug
+ * mode, messages are displayed in stderr, except HWLOC_XML_VERBOSE
+ * environment variable is set to 0. For standard build, the messages
+ * are displayed if HWLOC_XML_VERBOSE environment variable is set to
+ * 1. This value is checked once. Modifying this value during the
+ * execution of the code will not change the behaviour of the library.
+ *
+ * \returns 1 if error and warning messages should be displayed
+ * \returns 0 otherwise
+ */
+int netloc__xml_verbose(void);
 
 #if defined(HWLOC_HAVE_LIBXML2)
 #include <libxml/parser.h>

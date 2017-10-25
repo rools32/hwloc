@@ -210,10 +210,14 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path)
     char *strBuff;
     unsigned int part_size = 0, strBuffSize;
     xml_node_ptr part_node = NULL, crt_node = NULL, nodes_node = NULL,
-        cons_node = NULL;
+        cons_node = NULL, explicit_node = NULL;
     part_node = xml_node_new(NULL, BAD_CAST "partition");
-    nodes_node = xml_node_child_new(part_node, NULL, BAD_CAST "nodes", NULL);
-    cons_node = xml_node_child_new(part_node, NULL, BAD_CAST "connexions",NULL);
+    explicit_node = xml_node_child_new(part_node, NULL,
+                                       BAD_CAST "explicit", NULL);
+    nodes_node = xml_node_child_new(explicit_node, NULL,
+                                    BAD_CAST "nodes", NULL);
+    cons_node = xml_node_child_new(explicit_node, NULL,
+                                   BAD_CAST "connexions",NULL);
     /* Set name */
     xml_node_attr_add(part_node, BAD_CAST "name",
                       BAD_CAST "/extra+structural/");
@@ -270,7 +274,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path)
         /* Set size */
         strBuffSize = asprintf(&strBuff, "%u", part_size);
         if (0 < strBuffSize) {
-            xml_node_attr_cpy_add(part_node, BAD_CAST "size", strBuff);
+            xml_node_attr_cpy_add(explicit_node, BAD_CAST "size", strBuff);
             free(strBuff);
         }
         strBuff = NULL;
@@ -339,17 +343,20 @@ int netloc_write_xml_file(const char *subnet, const char *path,
     for (int p = 0; p < npartitions; ++p) {
         unsigned int part_size = 0;
         xml_node_ptr part_node = NULL, crt_node = NULL, nodes_node = NULL,
-            cons_node = NULL;
+            cons_node = NULL, explicit_node = NULL;
         part_node = xml_node_child_new(network_node, NULL,
                                        BAD_CAST "partition", NULL);
         /* Set name */
         if (ppartition && 0 < strlen(*ppartition)) {
             xml_node_attr_cpy_add(part_node, BAD_CAST "name", *ppartition);
         }
+        /* Add explicit */
+        explicit_node = xml_node_child_new(part_node, NULL,
+                                        BAD_CAST "explicit", NULL);
         /* Add nodes */
-        nodes_node = xml_node_child_new(part_node, NULL,
+        nodes_node = xml_node_child_new(explicit_node, NULL,
                                         BAD_CAST "nodes", NULL);
-        cons_node = xml_node_child_new(part_node, NULL,
+        cons_node = xml_node_child_new(explicit_node, NULL,
                                        BAD_CAST "connexions", NULL);
         node_t *node, *node_tmp;
         HASH_ITER(hh, nodes, node, node_tmp) {
@@ -399,7 +406,7 @@ int netloc_write_xml_file(const char *subnet, const char *path,
         /* Set size */
         strBuffSize = asprintf(&strBuff, "%u", part_size);
         if (0 < strBuffSize) {
-            xml_node_attr_cpy_add(part_node, BAD_CAST "size", strBuff);
+            xml_node_attr_cpy_add(explicit_node, BAD_CAST "size", strBuff);
             free(strBuff);
         }
         strBuff = NULL;

@@ -21,6 +21,24 @@
 #include <private/netloc.h>
 #include <private/netloc-xml.h>
 
+int
+netloc__xml_verbose(void)
+{
+  static int checked = 0;
+#ifdef NETLOC_DEBUG
+  static int verbose = 1;
+#else
+  static int verbose = 0;
+#endif
+  if (!checked) {
+    const char *env = getenv("HWLOC_XML_VERBOSE");
+    if (env)
+      verbose = atoi(env);
+    checked = 1;
+  }
+  return verbose;
+}
+
 #if defined(HWLOC_HAVE_LIBXML2)
 
 int netloc_topology_xml_load(char *path, netloc_topology_t **ptopology)

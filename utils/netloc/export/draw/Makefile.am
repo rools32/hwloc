@@ -12,6 +12,11 @@ AM_CPPFLAGS = \
         -I$(top_builddir)/include \
         -I$(top_srcdir)/include
 
+if NETLOC_HAVE_LIBXML2
+AM_CPPFLAGS += \
+    $(HWLOC_LIBXML2_CFLAGS)
+endif
+
 bin_PROGRAMS = \
         netloc_draw_to_json
 

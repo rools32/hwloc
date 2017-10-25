@@ -338,6 +338,8 @@ EOF
         hwloc_config_prefix[utils/netloc/export/draw/Makefile]
         hwloc_config_prefix[utils/netloc/export/scotch/Makefile]
         hwloc_config_prefix[utils/netloc/export/xml/Makefile]
+        hwloc_config_prefix[utils/netloc/topology/Makefile]
+        hwloc_config_prefix[utils/netloc/topology/explicit/Makefile]
         hwloc_config_prefix[utils/netloc/mapping/Makefile]
         hwloc_config_prefix[netloc.pc]
         hwloc_config_prefix[netlocscotch.pc]

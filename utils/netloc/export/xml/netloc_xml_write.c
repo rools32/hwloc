@@ -27,6 +27,20 @@
 #include <dirent.h>
 #include <libgen.h>
 
+static int
+node_belongs_to_a_partition(const node_t *node, const unsigned int nparts) {
+    for(unsigned int p = 0; node->partitions && p < nparts; ++p)
+        if (node->partitions[p]) return 1;
+    return 0;
+}
+
+static int
+edge_belongs_to_a_partition(const edge_t *edge, const unsigned int nparts) {
+    for(unsigned int p = 0; edge->partitions && p < nparts; ++p)
+        if (edge->partitions[p]) return 1;
+    return 0;
+}
+
 static inline void insert_xml_link(xml_node_ptr links_node,
                                    physical_link_t *link)
 {
@@ -205,7 +219,8 @@ static inline void insert_xml_node(xml_node_ptr crt_node, node_t *node,
     }
 }
 
-static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path)
+static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
+                               const unsigned int len_partitions)
 {
     char *strBuff;
     unsigned int part_size = 0, strBuffSize;
@@ -225,7 +240,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path)
     node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
         /* Check if node belongs to no partition */
-        if (!node_belongs_to_a_partition(node)) {
+        if (!node_belongs_to_a_partition(node, len_partitions)) {
             ++part_size;
             crt_node = xml_node_child_new(nodes_node, NULL,
                                           BAD_CAST "node", NULL);
@@ -259,7 +274,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path)
         edge_t *edge, *edge_tmp;
         HASH_ITER(hh, node->edges, edge, edge_tmp) {
             /* Check if edge belongs to no partition */
-            if (edge_belongs_to_a_partition(edge))
+            if (edge_belongs_to_a_partition(edge, len_partitions))
                 continue;
             crt_node = xml_node_child_new(cons_node, NULL,
                                           BAD_CAST "connexion", NULL);
@@ -283,7 +298,8 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path)
     return NETLOC_SUCCESS;
 }
 
-int netloc_write_xml_file(const char *subnet, const char *path,
+int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
+                          const char *subnet, const char *path,
                           const char *hwlocpath,
                           const netloc_network_type_t transportType)
 {
@@ -416,7 +432,7 @@ int netloc_write_xml_file(const char *subnet, const char *path,
     /*
      * Add structural/extra edges
      */
-    insert_extra(network_node, full_hwloc_path);
+    insert_extra(network_node, full_hwloc_path, utarray_len(partitions));
     /*
      * Dumping document to stdio or file
      */

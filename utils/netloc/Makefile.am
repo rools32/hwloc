@@ -4,5 +4,6 @@
 SUBDIRS = \
         utils \
         export \
+		topology \
         hardware \
         mapping

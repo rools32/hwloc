@@ -25,11 +25,3 @@ netloc_draw_to_json_SOURCES = \
 
 netloc_draw_to_json_LDADD = \
         $(top_builddir)/netloc/libnetloc.la
-
-if NETLOC_HAVE_LIBXML2
-AM_CPPFLAGS += \
-	$(HWLOC_LIBXML2_CFLAGS)
-
-netloc_draw_to_json_LDADD += \
-	$(HWLOC_LIBXML2_LIBS)
-endif

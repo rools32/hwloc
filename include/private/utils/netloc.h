@@ -102,17 +102,15 @@ static inline int node_is_virtual(node_t *node)
     return (NULL != node->subnodes);
 }
 
-extern int node_belongs_to_a_partition(node_t *node);
-
 static inline int edge_is_virtual(edge_t *edge)
 {
     return (NULL != edge->subedges);
 }
 
-extern int edge_belongs_to_a_partition(edge_t *edge);
-
 extern int
-netloc_write_into_xml_file(const char *subnet, const char *path, const char *hwlocpath,
+netloc_write_into_xml_file(node_t *nodes, const UT_array *partitions,
+                           const char *subnet, const char *path,
+                           const char *hwlocpath,
                            const netloc_network_type_t transportType);
 
 #endif /* _UTILS_NETLOC_H_ */

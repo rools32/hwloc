@@ -95,7 +95,7 @@ static inline void xml_dtd_subset_create(xml_doc_ptr doc,
 
 #else
 
-/* XML writing is made with utils/netloc/xml/netloc_xml_write.c */
+/* XML writing is made with utils/netloc/utils/xml/utils_xml_write.c */
 
 typedef void * xml_ns_ptr;
 

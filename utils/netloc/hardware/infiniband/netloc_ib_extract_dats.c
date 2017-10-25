@@ -31,6 +31,11 @@
 
 unsigned long long int global_link_idx = 0;
 
+node_t *nodes = NULL;
+UT_array *partitions = NULL;
+route_source_t *routes = NULL;
+path_source_t *paths = NULL;
+
 int read_routes(char *subnet, char *path, char *route_filename);
 int read_discover(char *subnet, char *discover_path, char *filename);
 int write_into_file(char *subnet, char *path, char *hwlocpath);
@@ -278,7 +283,7 @@ static char *node_find_partition_name(node_t *node)
 }
 
 
-int netloc_topology_find_partitions(void)
+static int netloc_topology_find_partitions(void)
 {
     int ret = 0;
     int num_nodes;
@@ -338,7 +343,7 @@ int netloc_topology_find_partitions(void)
     return ret;
 }
 
-int netloc_topology_set_partitions(void)
+static int netloc_topology_set_partitions(void)
 {
     /* Find the main partition for each node */
     netloc_topology_find_partitions();
@@ -533,7 +538,8 @@ int main(int argc, char **argv)
             build_paths();
             netloc_topology_set_partitions();
 
-            netloc_write_into_xml_file(subnet, outpath, hwlocpath,
+            netloc_write_into_xml_file(nodes, partitions, subnet, outpath,
+                                       hwlocpath,
                                        NETLOC_NETWORK_TYPE_INFINIBAND);
 
             /* Free node hash table */

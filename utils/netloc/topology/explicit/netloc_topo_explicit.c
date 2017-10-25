@@ -10,8 +10,9 @@
  */
 
 /*
- * This file provides general function and global variables to
- * generate XML topology files.
+ * This file provides general function to generate XML topology files
+ * after reworking the explicit graph in order to merge into virtual
+ * nodes when possible.
  */
 
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
@@ -20,7 +21,6 @@
 #include <netloc.h>
 #include <private/autogen/config.h>
 #include <private/utils/netloc.h>
-#include <private/utils/xml.h>
 
 #include <netloc/uthash.h>
 #include <netloc/utarray.h>
@@ -28,14 +28,11 @@
 #include <dirent.h>
 #include <libgen.h>
 
-extern int netloc_write_xml_file(const char *subnet, const char *path,
-                                 const char *hwlocpath,
-                                 const netloc_network_type_t transportType);
-
-node_t *nodes = NULL;
-UT_array *partitions = NULL;
-route_source_t *routes = NULL;
-path_source_t *paths = NULL;
+extern int
+netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
+                      const char *subnet, const char *path,
+                      const char *hwlocpath,
+                      const netloc_network_type_t transportType);
 
 static int get_virtual_id(char *id)
 {
@@ -49,18 +46,6 @@ static int sort_by_dest(edge_t *a, edge_t *b)
     return strncmp(a->dest, b->dest, MAX_STR);
 }
 
-int node_belongs_to_a_partition(node_t *node) {
-    for(unsigned p = 0; node->partitions && p < utarray_len(partitions); ++p)
-        if (node->partitions[p]) return 1;
-    return 0;
-}
-
-int edge_belongs_to_a_partition(edge_t *edge) {
-    for(unsigned p = 0; edge->partitions && p < utarray_len(partitions); ++p)
-        if (edge->partitions[p]) return 1;
-    return 0;
-}
-
 /**
  * Merge \ref edge going from \ref node to \ref dest_node into \ref
  * virtual_edge going from \ref virtual_node to \ref dest_node .
@@ -71,9 +56,9 @@ int edge_belongs_to_a_partition(edge_t *edge) {
  * of SW type.
  */
 static inline void edge_merge_into(node_t *virtual_node, edge_t *virtual_edge,
-                                   node_t *node, edge_t *edge, node_t *dest_node)
+                                   node_t *node, edge_t *edge, node_t *dest_node,
+                                   const unsigned int nparts)
 {
-    unsigned int npartitions = utarray_len(partitions);
     /* Change corresponding edge in reverse */
     edge_t *reverse_edge, *virtual_reverse_edge;
     assert(dest_node);
@@ -89,7 +74,7 @@ static inline void edge_merge_into(node_t *virtual_node, edge_t *virtual_edge,
             strncpy(virtual_reverse_edge->dest, virtual_node->physical_id, MAX_STR);
             virtual_reverse_edge->total_gbits = 0;
             virtual_reverse_edge->reverse_edge = virtual_edge;
-            virtual_reverse_edge->partitions = calloc(npartitions, sizeof(int));
+            virtual_reverse_edge->partitions = calloc(nparts, sizeof(int));
             utarray_new(virtual_reverse_edge->physical_link_idx, &ut_int_icd);
             utarray_new(virtual_reverse_edge->subedges, &ut_ptr_icd);
             HASH_ADD_STR(dest_node->edges, dest, virtual_reverse_edge);
@@ -113,7 +98,7 @@ static inline void edge_merge_into(node_t *virtual_node, edge_t *virtual_edge,
     virtual_reverse_edge->total_gbits += reverse_edge->total_gbits;
     virtual_edge->total_gbits += edge->total_gbits;
     /* Set partitions */
-    for (unsigned int p = 0; p < npartitions; ++p) {
+    for (unsigned int p = 0; p < nparts; ++p) {
         virtual_edge->partitions[p] |= edge->partitions[p];
         virtual_reverse_edge->partitions[p] |= reverse_edge->partitions[p];
     }
@@ -150,10 +135,9 @@ static inline void edge_merge_into(node_t *virtual_node, edge_t *virtual_edge,
     }
 }
 
-static inline int find_similar_nodes(void)
+static inline int find_similar_nodes(node_t *nodes, const unsigned int nparts)
 {
     int ret = NETLOC_ERROR;
-    unsigned int npartitions = utarray_len(partitions);
     /* Build edge lists by node */
     int num_nodes = HASH_COUNT(nodes);
     node_t **switch_nodes =
@@ -215,8 +199,8 @@ static inline int find_similar_nodes(void)
                     get_virtual_id(virtual_node->physical_id);
                     virtual_node->description = strdup(virtual_node->physical_id);
 
-                    virtual_node->partitions = calloc(npartitions, sizeof(int));
-                    for (unsigned int p = 0; p < npartitions; ++p)
+                    virtual_node->partitions = calloc(nparts, sizeof(int));
+                    for (unsigned int p = 0; p < nparts; ++p)
                         virtual_node->partitions[p] |= node1->partitions[p];
 
                     virtual_node->type = node1->type;
@@ -246,11 +230,12 @@ static inline int find_similar_nodes(void)
                             /* Create new virtual edge */
                             virtual_edge = (edge_t *)calloc(1, sizeof(edge_t));
                             strncpy(virtual_edge->dest, node_dest->physical_id, MAX_STR);
-                            virtual_edge->partitions = calloc(npartitions, sizeof(int));
+                            virtual_edge->partitions = calloc(nparts, sizeof(int));
                             virtual_edge->total_gbits = 0;
                             utarray_new(virtual_edge->subedges, &ut_ptr_icd);
                             utarray_new(virtual_edge->physical_link_idx, &ut_int_icd);
-                            edge_merge_into(virtual_node, virtual_edge, node1, edge1, node_dest);
+                            edge_merge_into(virtual_node, virtual_edge, node1, edge1,
+                                            node_dest, nparts);
                             HASH_DEL(node1->edges, edge1);
                             HASH_ADD_STR(virtual_node->edges, dest, virtual_edge);
                         }
@@ -265,7 +250,7 @@ static inline int find_similar_nodes(void)
                 /* add physical_links */
                 utarray_concat(virtual_node->physical_links, node2->physical_links);
 
-                for (unsigned int p = 0; p < npartitions; ++p)
+                for (unsigned int p = 0; p < nparts; ++p)
                     virtual_node->partitions[p] |= node2->partitions[p];
 
                 for (unsigned i = 0; i < num_edges_by_node[nodeCmpIdx]; i++) {
@@ -275,7 +260,7 @@ static inline int find_similar_nodes(void)
                     assert(virtual_edge);
                     HASH_FIND_STR(node2->edges, virtual_edge->dest, edge2);
                     assert(edge2);
-                    edge_merge_into(virtual_node, virtual_edge, node2, edge2, node_dest);
+                    edge_merge_into(virtual_node, virtual_edge, node2, edge2, node_dest, nparts);
                     HASH_DEL(node2->edges, edge2);
                     if (!strncmp("virtual", node_dest->physical_id, 7)) {
                         /* Destroy previous virtual edge */
@@ -382,7 +367,7 @@ ERROR:
     return ret;
 }
 
-static inline void set_reverse_edges()
+static inline void set_reverse_edges(node_t *nodes)
 {
     node_t *node, *node_tmp, *dest_node;
     edge_t *edge, *edge_tmp;
@@ -422,15 +407,17 @@ static inline void set_reverse_edges()
 #endif /* NETLOC_DEBUG */
 }
 
-int netloc_write_into_xml_file(const char *subnet, const char *path, const char *hwlocpath,
+int netloc_write_into_xml_file(node_t *nodes, const UT_array *partitions,
+                               const char *subnet, const char *path,
+                               const char *hwlocpath,
                                const netloc_network_type_t transportType)
 {
     int ret = NETLOC_ERROR;
 
-    set_reverse_edges();
-    find_similar_nodes();
+    set_reverse_edges(nodes);
+    find_similar_nodes(nodes, utarray_len(partitions));
 
-    ret = netloc_write_xml_file(subnet, path, hwlocpath, transportType);
+    ret = netloc_write_xml_file(nodes, partitions, subnet, path, hwlocpath, transportType);
 
     /* Untangle similar nodes so the virtualization is transparent */
     node_t *node, *node_tmp;

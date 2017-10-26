@@ -13,8 +13,8 @@
 #ifndef _NETLOC_XML_PRIVATE_H_
 #define _NETLOC_XML_PRIVATE_H_
 
-#include <private/netloc.h>
 #include <netloc.h>
+#include <private/netloc.h>
 
 /**
  * Load the netloc topology as described in the xml file pointed by \ref path.
@@ -44,20 +44,5 @@ netloc_topology_xml_load(const char *path, netloc_topology_t **ptopology);
  * \returns 0 otherwise
  */
 extern int netloc__xml_verbose(void);
-
-#if defined(HWLOC_HAVE_LIBXML2)
-#include <libxml/parser.h>
-#include <libxml/tree.h>
-#include <libxml/xmlmemory.h>
-
-extern int
-netloc_topology_libxml_load(const char *path, netloc_topology_t **ptopology);
-
-#else
-
-extern int
-netloc_topology_nolibxml_load(const char *path, netloc_topology_t **ptopology);
-
-#endif /* defined(HWLOC_HAVE_LIBXML2) */
 
 #endif /* _NETLOC_XML_PRIVATE_H_ */

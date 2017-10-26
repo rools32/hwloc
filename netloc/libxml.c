@@ -17,11 +17,16 @@
 #include <dirent.h>
 #include <libgen.h>
 
+#include <netloc.h>
 #include <private/autogen/config.h>
 #include <private/netloc.h>
 #include <private/netloc-xml.h>
 
 #if defined(HWLOC_HAVE_LIBXML2)
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xmlmemory.h>
 
 /**
  * Load the netloc partition as described in the xml file, of which

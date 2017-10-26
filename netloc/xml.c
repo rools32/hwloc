@@ -21,6 +21,21 @@
 #include <private/netloc.h>
 #include <private/netloc-xml.h>
 
+#if defined(HWLOC_HAVE_LIBXML2)
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+#include <libxml/xmlmemory.h>
+
+extern int
+netloc_topology_libxml_load(const char *path, netloc_topology_t **ptopology);
+
+#else
+
+extern int
+netloc_topology_nolibxml_load(const char *path, netloc_topology_t **ptopology);
+
+#endif /* defined(HWLOC_HAVE_LIBXML2) */
+
 int netloc__xml_verbose(void)
 {
   static int checked = 0;

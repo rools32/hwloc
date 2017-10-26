@@ -17,10 +17,12 @@
 #include <dirent.h>
 #include <libgen.h>
 
+#include <private/netloc.h>
 #include <private/autogen/config.h>
 #include <private/netloc.h>
 #include <private/netloc-xml.h>
 #include <netloc/utarray.h>
+#include <netloc/uthash.h>
 
 #ifndef HWLOC_HAVE_LIBXML2
 

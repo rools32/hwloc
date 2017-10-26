@@ -84,17 +84,19 @@ static void contents_end(contents_t *contents)
 }
 
 /******************************************************************************/
+struct xml_doc_t {
+    xml_node_ptr root;
+    xml_char *xml_version;
+    xml_char *doctype;
+};
+
 struct xml_node_t {
     xml_char *name;
     xml_char *content;
+    size_t content_size;
+    xml_node_ptr parent;
     contents_t attributes;
     contents_t children;
-};
-
-struct xml_doc_t {
-    struct xml_node_t *root;
-    xml_char *xml_version;
-    xml_char *doctype;
 };
 
 static int xml_node_write(FILE *out, xml_node_ptr node, unsigned int depth);
@@ -110,7 +112,9 @@ xml_node_ptr xml_node_new(xml_ns_ptr ns __netloc_attribute_unused,
     node->name = strdup(type);
     contents_init(&node->attributes, 0);
     contents_init(&node->children, 0);
+    node->content_size = 0;
     node->content = NULL;
+    node->parent = NULL;
     return node;
 }
 
@@ -154,6 +158,7 @@ void xml_node_attr_add(xml_node_ptr node, const xml_char *name,
 void xml_node_child_add(xml_node_ptr node, xml_node_ptr child)
 {
     contents_add(&node->children, child);
+    child->parent = node;
 }
 
 xml_node_ptr xml_node_child_new(xml_node_ptr parent, xml_ns_ptr ns,
@@ -161,7 +166,10 @@ xml_node_ptr xml_node_child_new(xml_node_ptr parent, xml_ns_ptr ns,
 {
     xml_node_ptr child = xml_node_new(ns, type);
     if (child) {
-        if (content) child->content = strdup(content);
+        if (content) {
+            child->content = strdup(content);
+            child->content_size = strlen(content);
+        }
         xml_node_child_add(parent, child);
     }
     return child;
@@ -170,9 +178,10 @@ xml_node_ptr xml_node_child_new(xml_node_ptr parent, xml_ns_ptr ns,
 void xml_node_merge(xml_node_ptr dest, xml_node_ptr src)
 {
     contents_merge(&dest->attributes, &src->attributes);
-    if (dest->content && src->content)
+    if (dest->content && src->content) {
         dest->content = strcat(dest->content, src->content);
-    else if (!dest->content)
+        dest->content_size = strlen(dest->content);
+    } else if (!dest->content)
         contents_merge(&dest->children, &src->children);
     xml_node_destruct(src);
 }

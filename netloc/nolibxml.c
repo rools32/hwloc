@@ -35,15 +35,6 @@ typedef struct {
     void **data;
 } contents_t;
 
-typedef struct xml_node_t {
-    char *name;
-    char *content;
-    size_t content_size;
-    struct xml_node_t *parent;
-    contents_t attributes;
-    contents_t children;
-} xml_node_t;
-
 static void contents_init(contents_t *contents, size_t allocated)
 {
     contents->data = (void **) (allocated ?
@@ -79,9 +70,35 @@ static void contents_end(contents_t *contents)
     free(contents->data);
 }
 
-static xml_node_t *xml_node_new(const char *type)
+/******************************************************************************/
+typedef char xml_char;
+
+struct xml_node_t;
+typedef struct xml_node_t * xml_node_ptr;
+
+struct xml_doc_t;
+typedef struct xml_doc_t * xml_doc_ptr;
+
+struct xml_doc_t {
+    xml_node_ptr root;
+    xml_char *xml_version;
+    xml_char *doctype;
+};
+
+struct xml_node_t {
+    char *name;
+    char *content;
+    size_t content_size;
+    xml_node_ptr parent;
+    contents_t attributes;
+    contents_t children;
+};
+
+void xml_node_free(xml_node_ptr node);
+
+static xml_node_ptr xml_node_new(const char *type)
 {
-    xml_node_t *node = (xml_node_t *)malloc(sizeof(xml_node_t));
+    xml_node_ptr node = (xml_node_ptr) malloc(sizeof(struct xml_node_t));
     if (!node) {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: unable to allocate node.\n");
@@ -96,28 +113,37 @@ static xml_node_t *xml_node_new(const char *type)
     return node;
 }
 
-static void xml_node_destruct(xml_node_t *node)
+static inline void xml_node_destruct(xml_node_ptr node)
 {
-    size_t i;
-    if (!node) return;
     free(node->name);
     free(node->content);
-    for (i = 0; i < node->attributes.num; ++i)
-        free(node->attributes.data[i]);
     contents_end(&node->attributes);
-    for (i = 0; i < node->children.num; ++i)
-        xml_node_destruct((xml_node_t *)node->children.data[i]);
     contents_end(&node->children);
     free(node);
 }
 
-static void xml_node_attr_add(xml_node_t *node, const char *attrval)
+static inline void xml_node_empty(xml_node_ptr node)
+{
+    size_t i;
+    for (i = 0; i < node->attributes.num; ++i)
+        free(node->attributes.data[i]);
+    for (i = 0; i < node->children.num; ++i)
+        xml_node_free((xml_node_ptr)node->children.data[i]);
+}
+
+void xml_node_free(xml_node_ptr node)
+{
+    xml_node_empty(node);
+    xml_node_destruct(node);
+}
+
+static void xml_node_attr_add(xml_node_ptr node, const char *attrval)
 {
     if (strchr(attrval, '='))
         contents_add(&node->attributes, strdup(attrval));
 }
 
-static char *xml_node_attr_get(xml_node_t *node, const char *attrname)
+static char *xml_node_attr_get(xml_node_ptr node, const char *attrname)
 {
     size_t attrsize = strlen(attrname);
     if (0 == attrsize) return NULL;
@@ -132,13 +158,13 @@ static char *xml_node_attr_get(xml_node_t *node, const char *attrname)
     return NULL;
 }
 
-static void xml_node_child_add(xml_node_t *node, xml_node_t *child)
+static void xml_node_child_add(xml_node_ptr node, xml_node_ptr child)
 {
     contents_add(&node->children, child);
     child->parent = node;
 }
 
-static void xml_node_content_add(xml_node_t *node, const char *content)
+static void xml_node_content_add(xml_node_ptr node, const char *content)
 {
     /* Concatenate all contents */
     size_t content_size = strlen(content) + 1;
@@ -146,6 +172,26 @@ static void xml_node_content_add(xml_node_t *node, const char *content)
     char *new = (char *)realloc(node->content, new_size);
     memcpy(new + node->content_size, content, content_size);
     node->content = new; node->content_size = new_size;
+}
+
+xml_doc_ptr xml_doc_new(const xml_char *version) {
+    xml_doc_ptr ret = (xml_doc_ptr)malloc(sizeof(struct xml_doc_t));
+    ret->xml_version = strdup(version);
+    ret->doctype = NULL;
+    return ret;
+}
+
+void xml_doc_free(xml_doc_ptr doc) {
+    xml_node_free(doc->root);
+    free(doc->xml_version);
+    free(doc->doctype);
+    free(doc);
+}
+
+xml_node_ptr xml_doc_set_root_element(xml_doc_ptr doc, xml_node_ptr node) {
+    xml_node_ptr old = doc->root;
+    doc->root = node;
+    return old;
 }
 
 static inline char *ignore_spaces(char *buffer)
@@ -162,13 +208,14 @@ static inline char *next_attr(char *buffer)
         return NULL;
 }
 
-static xml_node_t *xml_node_read_file(const char *path)
+static xml_doc_ptr xml_node_read_file(const char *path)
 {
     size_t n = 0;
     ssize_t read;
-    char *line = NULL, *buff = NULL, *doctype = NULL;;
-    xml_node_t *root_node = NULL, *crt_node = NULL;
+    char *line = NULL, *buff = NULL, *xml_vers = NULL;
+    xml_node_ptr crt_node = NULL;
     int parse_attr = 0;
+    xml_doc_ptr doc = NULL;
 
     FILE *in = fopen(path, "r");
     if (!in) return NULL;
@@ -181,6 +228,12 @@ static xml_node_t *xml_node_read_file(const char *path)
             if (!parse_attr) {
                 /* Remove xml header tag */
                 if (!strncmp("<?xml ", buff, 6)) {
+                    /* Retrieve XML version and encoding */
+                    if (!doc && (xml_vers = strstr(buff, "version=\""))) {
+                        char end = xml_vers[12]; xml_vers[12] = '\0';
+                        doc = xml_doc_new(xml_vers + 9);
+                        xml_vers[12] = end;
+                    }
                     while (!(buff = strstr(buff, "?>"))) {
                         /* Potentially get next lines until the end of
                            the tag is found */
@@ -190,15 +243,21 @@ static xml_node_t *xml_node_read_file(const char *path)
                             /* There should have been some tags before EOF */
                             goto ERROR;
                         buff = ignore_spaces(line);
+                        if (!doc && (xml_vers = strstr(buff, "version=\""))) {
+                            char end = xml_vers[12]; xml_vers[12] = '\0';
+                            doc = xml_doc_new(xml_vers + 9);
+                            xml_vers[12] = end;
+                        }
                     }
                     buff += 2;
                 }
 
                 /* Doctype */
                 else if ('<' == *buff && !strncmp("<!DOCTYPE", buff, 9)) {
-                    if (doctype) free(doctype);
+                    if (!doc) goto ERROR; /* Wrong XML structure */
+                    else if (doc->doctype) free(doc->doctype);
                     char *end = strchr(buff, '>');
-                    doctype = strndup(buff, end - buff + 1);
+                    doc->doctype = strndup(buff, end - buff + 1);
                     buff = end + 1;
                 }
 
@@ -210,7 +269,7 @@ static xml_node_t *xml_node_read_file(const char *path)
                         goto ERROR;
 
                     /* There should not be any space tags' name */
-                    xml_node_t *new = NULL;
+                    xml_node_ptr new = NULL;
                     char *end = NULL, *eend = NULL;
                     end = strchr(buff, ' '); eend = strchr(buff, '>');
                     if ((end && eend && end < eend) || (end && !eend)) {
@@ -232,9 +291,11 @@ static xml_node_t *xml_node_read_file(const char *path)
                     }
                     parse_attr = 1;
                     if (!new) goto ERROR; /* Memory exhaustion (probably) */
-                    else if (!root_node)
-                        root_node = crt_node = new;
-                    else {
+                    else if (!doc) goto ERROR; /* Wrong XML structure */
+                    else if (!crt_node) {
+                        crt_node = new;
+                        xml_doc_set_root_element(doc, new);
+                    } else {
                         xml_node_child_add(crt_node, new);
                         crt_node = new;
                     }
@@ -314,15 +375,14 @@ static xml_node_t *xml_node_read_file(const char *path)
         }
         free(line); line = NULL;
     }
-    free(doctype);
     free(line);
     fclose(in);
-    return root_node;
+    return doc;
     
  ERROR:
     free(line);
     fclose(in);
-    xml_node_destruct(root_node);
+    xml_doc_free(doc);
     return NULL;
 }
 
@@ -348,7 +408,7 @@ static xml_node_t *xml_node_read_file(const char *path)
  *   A newly allocated and initialized pointer to the partition information.
  */
 static netloc_partition_t *
-netloc_part_xml_load(xml_node_t *part_node, char *hwlocpath,
+netloc_part_xml_load(xml_node_ptr part_node, char *hwlocpath,
                      netloc_hwloc_topology_t **hwloc_topos,
                      netloc_topology_t *topology);
 
@@ -372,7 +432,7 @@ netloc_part_xml_load(xml_node_t *part_node, char *hwlocpath,
  *   A newly allocated and initialized pointer to the node information.
  */
 static netloc_node_t *
-netloc_node_xml_load(xml_node_t *it_node, char *hwlocpath,
+netloc_node_xml_load(xml_node_ptr it_node, char *hwlocpath,
                      netloc_hwloc_topology_t **hwloc_topos);
 
 /**
@@ -391,7 +451,7 @@ netloc_node_xml_load(xml_node_t *it_node, char *hwlocpath,
  *   A newly allocated and initialized pointer to the edge information.
  */
 static netloc_edge_t *
-netloc_edge_xml_load(xml_node_t *it_edge, netloc_topology_t *topology,
+netloc_edge_xml_load(xml_node_ptr it_edge, netloc_topology_t *topology,
                      netloc_partition_t *partition);
 
 /**
@@ -408,7 +468,7 @@ netloc_edge_xml_load(xml_node_t *it_edge, netloc_topology_t *topology,
  *   A newly allocated and initialized pointer to the physical link information.
  */
 static netloc_physical_link_t *
-netloc_physical_link_xml_load(xml_node_t *it_link, netloc_edge_t *edge,
+netloc_physical_link_xml_load(xml_node_ptr it_link, netloc_edge_t *edge,
                               netloc_partition_t *partition);
 
 int netloc_topology_nolibxml_load(const char *path,
@@ -416,7 +476,8 @@ int netloc_topology_nolibxml_load(const char *path,
 {
     int ret = NETLOC_ERROR;
     char *buff;
-    xml_node_t *machine_node, *net_node = NULL, *crt_node = NULL;
+    xml_node_ptr machine_node, net_node = NULL, crt_node = NULL;
+    xml_doc_ptr doc = NULL;
     netloc_topology_t *topology = NULL;
     netloc_hwloc_topology_t *hwloc_topos = NULL;
     char *hwlocpath = NULL;
@@ -436,7 +497,8 @@ int netloc_topology_nolibxml_load(const char *path,
     if (NULL == topology)
         return NETLOC_ERROR;
 
-    machine_node = xml_node_read_file(path);
+    doc = xml_node_read_file(path);
+    machine_node = doc->root;
     if (NULL == machine_node) {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: unable to parse the XML file.\n");
@@ -459,7 +521,7 @@ int netloc_topology_nolibxml_load(const char *path,
         /* Retrieve hwloc path */
         size_t net_id = 1;
         if (net_id < machine_node->children.num &&
-            (crt_node = (xml_node_t *)machine_node->children.data[0])
+            (crt_node = (xml_node_ptr) machine_node->children.data[0])
             && !strcmp("hwloc_path", crt_node->name) && crt_node->content) {
             hwlocpath = strdup(crt_node->content);
         } else {
@@ -470,7 +532,7 @@ int netloc_topology_nolibxml_load(const char *path,
         }
         if (net_id < machine_node->children.num) {
             /* Find machine topology root_node */
-            net_node = (xml_node_t *) machine_node->children.data[net_id];
+            net_node = (xml_node_ptr) machine_node->children.data[net_id];
         }
     }
     if (!net_node) {
@@ -531,7 +593,7 @@ int netloc_topology_nolibxml_load(const char *path,
     /* Retrieve subnet */
     char *subnet = NULL;
     if (0 < net_node->children.num
-        && (crt_node = (xml_node_t *) net_node->children.data[0])
+        && (crt_node = (xml_node_ptr) net_node->children.data[0])
         && !strcmp("subnet", crt_node->name) && crt_node->content) {
         subnet = strdup(crt_node->content);
     } else {
@@ -543,7 +605,7 @@ int netloc_topology_nolibxml_load(const char *path,
 
     /* Read partitions from file */
     for (size_t part_id = 1; part_id < net_node->children.num; ++part_id) {
-        xml_node_t *part = net_node->children.data[part_id];
+        xml_node_ptr part = net_node->children.data[part_id];
         if (!part) continue;
         /* Load partition */
         netloc_partition_t *partition = NULL;
@@ -602,18 +664,18 @@ int netloc_topology_nolibxml_load(const char *path,
  clean_and_out:
     free(subnet);
     free(hwlocpath);
-    xml_node_destruct(machine_node);
+    xml_doc_free(doc);
     *ptopology = topology;
 
     return ret;
 }
 
 static netloc_partition_t * /* to become explicit */
-netloc_part_xml_load(xml_node_t *part, char *hwloc_path,
+netloc_part_xml_load(xml_node_ptr part, char *hwloc_path,
                      netloc_hwloc_topology_t **hwloc_topos,
                      netloc_topology_t *topology)
 {
-    xml_node_t *explicit_node = NULL, *nodes_node, *edges_node;
+    xml_node_ptr explicit_node = NULL, nodes_node, edges_node;
     char *strBuff, *buff;
     
     /* Check partition's name */
@@ -637,7 +699,7 @@ netloc_part_xml_load(xml_node_t *part, char *hwloc_path,
 
     /* Check for <explicit> tag */
     if (!part->children.num
-        || !(explicit_node = (xml_node_t *) part->children.data[0])
+        || !(explicit_node = (xml_node_ptr) part->children.data[0])
         || 0 != strcmp("explicit", explicit_node->name)) {
         if (netloc__xml_verbose())
             fprintf(stderr, "WARN: no \"explicit\" tag.\n");
@@ -664,7 +726,7 @@ netloc_part_xml_load(xml_node_t *part, char *hwloc_path,
 
     /* Check for <nodes> tag */
     if (!explicit_node->children.num
-        || !(nodes_node = (xml_node_t *) explicit_node->children.data[0])
+        || !(nodes_node = (xml_node_ptr) explicit_node->children.data[0])
         || 0 != strcmp("nodes", nodes_node->name)
         || (!nodes_node->children.num && 0 < nnodes)) {
         if (netloc__xml_verbose())
@@ -674,7 +736,7 @@ netloc_part_xml_load(xml_node_t *part, char *hwloc_path,
     }
 
     for (size_t node_id = 0; node_id < nodes_node->children.num; ++node_id) {
-        xml_node_t *it_node = (xml_node_t *) nodes_node->children.data[node_id];
+        xml_node_ptr it_node = (xml_node_ptr) nodes_node->children.data[node_id];
         if (!it_node) continue;
         netloc_node_t *node = NULL;
         /* Prefetch physical_id to know if it's worth loading the node */
@@ -730,7 +792,7 @@ netloc_part_xml_load(xml_node_t *part, char *hwloc_path,
     size_t nchildren = explicit_node->children.num;
     if (!explicit_node->children.num || (nnodes > 0 && 2 > nchildren)
         || !(edges_node =
-             (xml_node_t *) explicit_node->children.data[nchildren - 1])
+             (xml_node_ptr) explicit_node->children.data[nchildren - 1])
         || strcmp("connexions", edges_node->name)) {
         if ( 1 < nnodes)
             if (netloc__xml_verbose())
@@ -742,8 +804,8 @@ netloc_part_xml_load(xml_node_t *part, char *hwloc_path,
         return partition;
     }
     for (size_t edge_id = 0; edge_id < edges_node->children.num; ++edge_id) {
-        xml_node_t *it_edge =
-            (xml_node_t *) edges_node->children.data[edge_id];
+        xml_node_ptr it_edge =
+            (xml_node_ptr) edges_node->children.data[edge_id];
         netloc_edge_t *edge =
             netloc_edge_xml_load(it_edge, topology, partition);
         if (partition && edge) {
@@ -754,9 +816,9 @@ netloc_part_xml_load(xml_node_t *part, char *hwloc_path,
 }
 
 static netloc_node_t *
-netloc_node_xml_load(xml_node_t *it_node, char *hwlocpath,
+netloc_node_xml_load(xml_node_ptr it_node, char *hwlocpath,
                      netloc_hwloc_topology_t **hwloc_topos) {
-    xml_node_t *tmp = NULL;
+    xml_node_ptr tmp = NULL;
     char *strBuff = NULL, *buff = NULL;
     size_t strBuffSize, buffSize;
     netloc_node_t *node = netloc_node_construct();
@@ -853,10 +915,10 @@ netloc_node_xml_load(xml_node_t *it_node, char *hwlocpath,
         free(buff); buff = NULL;
         /* Add subnodes */
         if (!node->description) {
-            tmp = (xml_node_t *)it_node->children.data[0];
+            tmp = (xml_node_ptr) it_node->children.data[0];
             node->description = strndup(node->physical_id, 20);
         } else {
-            tmp = (xml_node_t *)it_node->children.data[1];
+            tmp = (xml_node_ptr) it_node->children.data[1];
         }
         if (!tmp || !tmp->name || 0 != strcmp("subnodes", tmp->name)) {
             if (netloc__xml_verbose())
@@ -877,7 +939,7 @@ netloc_node_xml_load(xml_node_t *it_node, char *hwlocpath,
         }
         for (size_t subnode_id = 0;
              subnode_id < tmp->children.num; ++subnode_id) {
-            xml_node_t *it_subnode = tmp->children.data[subnode_id];
+            xml_node_ptr it_subnode = tmp->children.data[subnode_id];
             netloc_node_t *subnode =
                 netloc_node_xml_load(it_subnode, hwlocpath, hwloc_topos);
             if (subnode)
@@ -895,10 +957,10 @@ netloc_node_xml_load(xml_node_t *it_node, char *hwlocpath,
 }
 
 static netloc_edge_t *
-netloc_edge_xml_load(xml_node_t *it_edge, netloc_topology_t *topology,
+netloc_edge_xml_load(xml_node_ptr it_edge, netloc_topology_t *topology,
                      netloc_partition_t *partition)
 {
-    xml_node_t *tmp;
+    xml_node_ptr tmp;
     char *buff = NULL, *strBuff = NULL;
     size_t strBuffSize;
     netloc_edge_t *edge = netloc_edge_construct();
@@ -1060,7 +1122,7 @@ netloc_edge_xml_load(xml_node_t *it_edge, netloc_topology_t *topology,
 }
 
 static netloc_physical_link_t *
-netloc_physical_link_xml_load(xml_node_t *it_link, netloc_edge_t *edge,
+netloc_physical_link_xml_load(xml_node_ptr it_link, netloc_edge_t *edge,
                               netloc_partition_t *partition)
 {
     char *buff = NULL, *strBuff = NULL;

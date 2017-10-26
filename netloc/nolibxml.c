@@ -160,7 +160,7 @@ static inline char *next_attr(char *buffer)
         return NULL;
 }
 
-static xml_node_t *xml_node_read_file(char *path)
+static xml_node_t *xml_node_read_file(const char *path)
 {
     size_t n = 0;
     ssize_t read;
@@ -400,8 +400,10 @@ static netloc_physical_link_t *
 netloc_physical_link_xml_load(xml_node_t *it_link, netloc_edge_t *edge,
                               netloc_partition_t *partition);
 
-int netloc_topology_nolibxml_load(char *path, netloc_topology_t **ptopology)
+int netloc_topology_nolibxml_load(const char *path,
+                                  netloc_topology_t **ptopology)
 {
+    int ret = NETLOC_ERROR;
     char *buff;
     xml_node_t *machine_node, *net_node = NULL, *crt_node = NULL;
     netloc_topology_t *topology = NULL;
@@ -474,6 +476,7 @@ int netloc_topology_nolibxml_load(char *path, netloc_topology_t **ptopology)
             char *path_tmp = strdup(path);
             asprintf(&realhwlocpath, "%s/%s", dirname(path_tmp), hwlocpath);
             free(path_tmp);
+            free(hwlocpath);
             hwlocpath = realhwlocpath;
         }
         if (!(hwlocdir = opendir(hwlocpath))) {
@@ -583,6 +586,7 @@ int netloc_topology_nolibxml_load(char *path, netloc_topology_t **ptopology)
         netloc_topology_destruct(topology); topology = NULL;
         goto clean_and_out;
     }
+    ret = NETLOC_SUCCESS;
 
  clean_and_out:
     free(subnet);
@@ -590,7 +594,7 @@ int netloc_topology_nolibxml_load(char *path, netloc_topology_t **ptopology)
     xml_node_destruct(machine_node);
     *ptopology = topology;
 
-    return NETLOC_SUCCESS;
+    return ret;
 }
 
 static netloc_partition_t * /* to become explicit */

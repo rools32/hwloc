@@ -106,12 +106,13 @@ static netloc_physical_link_t *
 netloc_physical_link_xml_load(xmlNode *it_link, netloc_edge_t *edge,
                               netloc_partition_t *partition);
 
-static xmlDoc *netloc_xml_reader_init(char *path);
+static xmlDoc *netloc_xml_reader_init(const char *path);
 
 static int netloc_xml_reader_clean_and_out(xmlDoc *doc);
 
-int netloc_topology_libxml_load(char *path, netloc_topology_t **ptopology)
+int netloc_topology_libxml_load(const char *path, netloc_topology_t **ptopology)
 {
+    int ret = NETLOC_ERROR;
     xmlNodePtr machine_node, net_node = NULL, crt_node = NULL;
     xmlChar *buff = NULL;
     netloc_topology_t *topology = NULL;
@@ -177,6 +178,7 @@ int netloc_topology_libxml_load(char *path, netloc_topology_t **ptopology)
             char *path_tmp = strdup(path);
             asprintf(&realhwlocpath, "%s/%s", dirname(path_tmp), hwlocpath);
             free(path_tmp);
+            free(hwlocpath);
             hwlocpath = realhwlocpath;
         }
         if (!(hwlocdir = opendir(hwlocpath))) {
@@ -282,7 +284,7 @@ int netloc_topology_libxml_load(char *path, netloc_topology_t **ptopology)
             fprintf(stderr, "WARN: no hwloc topology found\n");
     }
 
-    topology->topopath       = path;
+    topology->topopath       = strdup(path);
     topology->hwloc_dir_path = strdup(hwlocpath);
     topology->subnet_id      = strdup(subnet);
     topology->transport_type = transport_type;
@@ -292,14 +294,15 @@ int netloc_topology_libxml_load(char *path, netloc_topology_t **ptopology)
         topology = NULL;
         goto clean_and_out;
     }
-    
+    ret = NETLOC_SUCCESS;
+
  clean_and_out:
     free(subnet);
     free(hwlocpath);
     netloc_xml_reader_clean_and_out(doc);
     *ptopology = topology;
     
-    return NETLOC_SUCCESS;
+    return ret;
 }
 
 static netloc_partition_t * /* To become load explicit */
@@ -373,6 +376,7 @@ netloc_part_xml_load(xmlNodePtr part, char *hwloc_path,
             continue;
         }
         HASH_FIND_STR(topology->nodes, (char *)buff, node);
+        xmlFree(buff); buff = NULL;
         if (!node) {
             node = netloc_node_xml_load(it_node, hwloc_path, hwloc_topos);
             if (!node) {
@@ -842,7 +846,7 @@ netloc_physical_link_xml_load(xmlNodePtr it_link, netloc_edge_t *edge,
     return NULL;
 }
 
-static xmlDoc *netloc_xml_reader_init(char *path)
+static xmlDoc *netloc_xml_reader_init(const char *path)
 {
     xmlDoc *doc = NULL;
 

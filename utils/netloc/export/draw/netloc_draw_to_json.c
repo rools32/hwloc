@@ -694,6 +694,7 @@ int main(int argc, char **argv)
 
         netloc_topology_t *topology;
         int ret = netloc_topology_xml_load(topopath, &topology);
+        free(topopath);
         if (NETLOC_SUCCESS != ret) {
             fprintf(stderr, "Error: netloc_topology_construct failed\n");
             return ret;

@@ -28,7 +28,8 @@
  * \returns NETLOC_ERROR_NOENT if \ref path is not valid
  * \returns NETLOC_ERROR on error
  */
-int netloc_topology_xml_load(char *path, netloc_topology_t **ptopology);
+extern int
+netloc_topology_xml_load(const char *path, netloc_topology_t **ptopology);
 
 /**
  * Check whether warnings and errors should be reported in stderr in
@@ -42,18 +43,20 @@ int netloc_topology_xml_load(char *path, netloc_topology_t **ptopology);
  * \returns 1 if error and warning messages should be displayed
  * \returns 0 otherwise
  */
-int netloc__xml_verbose(void);
+extern int netloc__xml_verbose(void);
 
 #if defined(HWLOC_HAVE_LIBXML2)
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
 
-int netloc_topology_libxml_load(char *path, netloc_topology_t **ptopology);
+extern int
+netloc_topology_libxml_load(const char *path, netloc_topology_t **ptopology);
 
 #else
 
-int netloc_topology_nolibxml_load(char *path, netloc_topology_t **ptopology);
+extern int
+netloc_topology_nolibxml_load(const char *path, netloc_topology_t **ptopology);
 
 #endif /* defined(HWLOC_HAVE_LIBXML2) */
 

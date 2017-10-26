@@ -164,7 +164,7 @@ static xml_node_t *xml_node_read_file(const char *path)
 {
     size_t n = 0;
     ssize_t read;
-    char *line = NULL, *buff = NULL;
+    char *line = NULL, *buff = NULL, *doctype = NULL;;
     xml_node_t *root_node = NULL, *crt_node = NULL;
     int parse_attr = 0;
 
@@ -190,6 +190,14 @@ static xml_node_t *xml_node_read_file(const char *path)
                         buff = ignore_spaces(line);
                     }
                     buff += 2;
+                }
+
+                /* Doctype */
+                else if ('<' == *buff && !strncmp("<!DOCTYPE", buff, 9)) {
+                    if (doctype) free(doctype);
+                    char *end = strchr(buff, '>');
+                    doctype = strndup(buff, end - buff + 1);
+                    buff = end + 1;
                 }
 
                 /* New tag */
@@ -304,6 +312,7 @@ static xml_node_t *xml_node_read_file(const char *path)
         }
         free(line); line = NULL;
     }
+    free(doctype);
     free(line);
     fclose(in);
     return root_node;

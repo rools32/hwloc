@@ -21,6 +21,7 @@
 #include <private/autogen/config.h>
 #include <private/netloc.h>
 #include <private/netloc-xml.h>
+#include <private/utils/xml.h>
 #include <netloc/utarray.h>
 #include <netloc/uthash.h>
 
@@ -29,6 +30,8 @@
 /******************************************************************************/
 /* Function to handle XML tree */
 /******************************************************************************/
+/* Contents API needed for the xml_node_t */
+
 typedef struct {
     size_t num;
     size_t allocated;
@@ -65,38 +68,50 @@ static void contents_add(contents_t *contents, void *data)
     ++contents->num;
 }
 
+static void contents_merge(contents_t *dest, const contents_t *src)
+{
+    size_t new_num   = dest->num + src->num;
+    size_t new_alloc = 1 < dest->allocated ? dest->allocated : 1;
+    while (new_num > new_alloc)
+        new_alloc *= 2;
+    void **new_data = (void **) realloc(dest->data, sizeof(void *[new_alloc]));
+    if (!new_data)
+        return;
+    memcpy(&new_data[dest->num], src->data, sizeof(void *[src->num]));
+    dest->data      = new_data;
+    dest->num       = new_num;
+    dest->allocated = new_alloc;
+}
+
 static void contents_end(contents_t *contents)
 {
     free(contents->data);
 }
 
 /******************************************************************************/
+/* API to manage xml_node_t */
 typedef char xml_char;
 
-struct xml_node_t;
+struct xml_node_t {
+    xml_char *name;
+    xml_char *content;
+    size_t content_size;
+    xml_node_ptr parent;
+    contents_t attributes;
+    contents_t children;
+};
 typedef struct xml_node_t * xml_node_ptr;
-
-struct xml_doc_t;
-typedef struct xml_doc_t * xml_doc_ptr;
 
 struct xml_doc_t {
     xml_node_ptr root;
     xml_char *xml_version;
     xml_char *doctype;
 };
+typedef struct xml_doc_t * xml_doc_ptr;
 
-struct xml_node_t {
-    char *name;
-    char *content;
-    size_t content_size;
-    xml_node_ptr parent;
-    contents_t attributes;
-    contents_t children;
-};
-
-void xml_node_free(xml_node_ptr node);
-
-static xml_node_ptr xml_node_new(const char *type)
+/* Nodes */
+xml_node_ptr xml_node_new(xml_ns_ptr ns __netloc_attribute_unused,
+                          const char *type)
 {
     xml_node_ptr node = (xml_node_ptr) malloc(sizeof(struct xml_node_t));
     if (!node) {
@@ -107,8 +122,8 @@ static xml_node_ptr xml_node_new(const char *type)
     node->name = strdup(type);
     contents_init(&node->attributes, 0);
     contents_init(&node->children, 0);
-    node->content = NULL;
     node->content_size = 0;
+    node->content = NULL;
     node->parent = NULL;
     return node;
 }
@@ -128,7 +143,7 @@ static inline void xml_node_empty(xml_node_ptr node)
     for (i = 0; i < node->attributes.num; ++i)
         free(node->attributes.data[i]);
     for (i = 0; i < node->children.num; ++i)
-        xml_node_free((xml_node_ptr)node->children.data[i]);
+        xml_node_free((xml_node_ptr) node->children.data[i]);
 }
 
 void xml_node_free(xml_node_ptr node)
@@ -137,10 +152,29 @@ void xml_node_free(xml_node_ptr node)
     xml_node_destruct(node);
 }
 
-static void xml_node_attr_add(xml_node_ptr node, const char *attrval)
+static void xml_node_attr_load(xml_node_ptr node, const char *attrval)
 {
     if (strchr(attrval, '='))
         contents_add(&node->attributes, strdup(attrval));
+}
+
+void xml_node_attr_add(xml_node_ptr node, const xml_char *name,
+                       const xml_char *value)
+{
+    int ret;
+    char *attr = NULL;
+    ret = asprintf(&attr, " %s=\"%s\"", name, value);
+    if (0 > ret) {
+        fprintf(stderr, "WARN: unable to add attribute named \"%s\"\n", name);
+        return;
+    }
+    contents_add(&node->attributes, attr);
+}
+
+void xml_node_attr_cpy_add(xml_node_ptr node, const xml_char *name,
+                           const char *value)
+{
+    xml_node_attr_add(node, name, value);
 }
 
 static char *xml_node_attr_get(xml_node_ptr node, const char *attrname)
@@ -148,7 +182,7 @@ static char *xml_node_attr_get(xml_node_ptr node, const char *attrname)
     size_t attrsize = strlen(attrname);
     if (0 == attrsize) return NULL;
     for (size_t i = 0; i < node->attributes.num; ++i) {
-        char *val = (char *)node->attributes.data[i], *end;
+        char *val = (char *) node->attributes.data[i], *end;
         if (!strncmp(attrname, val, attrsize)) {
             val = strchr(val, '=') + 2; /* Assume attr is like "attr="value"" */
             val = strdup(val); end = strrchr(val, '"'); *end = '\0';
@@ -158,10 +192,24 @@ static char *xml_node_attr_get(xml_node_ptr node, const char *attrname)
     return NULL;
 }
 
-static void xml_node_child_add(xml_node_ptr node, xml_node_ptr child)
+void xml_node_child_add(xml_node_ptr node, xml_node_ptr child)
 {
     contents_add(&node->children, child);
     child->parent = node;
+}
+
+xml_node_ptr xml_node_child_new(xml_node_ptr parent, xml_ns_ptr ns,
+                                const xml_char *type, const xml_char *content)
+{
+    xml_node_ptr child = xml_node_new(ns, type);
+    if (child) {
+        if (content) {
+            child->content = strdup(content);
+            child->content_size = strlen(content);
+        }
+        xml_node_child_add(parent, child);
+    }
+    return child;
 }
 
 static void xml_node_content_add(xml_node_ptr node, const char *content)
@@ -169,30 +217,117 @@ static void xml_node_content_add(xml_node_ptr node, const char *content)
     /* Concatenate all contents */
     size_t content_size = strlen(content) + 1;
     size_t new_size = node->content_size + content_size;
-    char *new = (char *)realloc(node->content, new_size);
+    char *new = (char *) realloc(node->content, new_size);
     memcpy(new + node->content_size, content, content_size);
     node->content = new; node->content_size = new_size;
 }
 
-xml_doc_ptr xml_doc_new(const xml_char *version) {
+void xml_node_merge(xml_node_ptr dest, xml_node_ptr src)
+{
+    contents_merge(&dest->attributes, &src->attributes);
+    if (dest->content && src->content) {
+        dest->content = strcat(dest->content, src->content);
+        dest->content_size = strlen(dest->content);
+    } else if (!dest->content)
+        contents_merge(&dest->children, &src->children);
+    xml_node_destruct(src);
+}
+
+int xml_node_has_child(xml_node_ptr node)
+{
+    return 0 != node->children.num;
+}
+
+/* Doc */
+xml_doc_ptr xml_doc_new(const xml_char *version)
+{
     xml_doc_ptr ret = (xml_doc_ptr)malloc(sizeof(struct xml_doc_t));
     ret->xml_version = strdup(version);
     ret->doctype = NULL;
     return ret;
 }
 
-void xml_doc_free(xml_doc_ptr doc) {
+void xml_doc_free(xml_doc_ptr doc)
+{
     xml_node_free(doc->root);
     free(doc->xml_version);
     free(doc->doctype);
     free(doc);
 }
 
-xml_node_ptr xml_doc_set_root_element(xml_doc_ptr doc, xml_node_ptr node) {
+xml_node_ptr xml_doc_set_root_element(xml_doc_ptr doc, xml_node_ptr node)
+{
     xml_node_ptr old = doc->root;
     doc->root = node;
     return old;
 }
+
+void xml_dtd_subset_create(xml_doc_ptr doc, const xml_char *name,
+                           const xml_char *externalid __netloc_attribute_unused,
+                           const xml_char *systemid)
+{
+    int ret;
+    if (doc->doctype) {
+        fprintf(stderr, "WARN: Overwriting previous DTD: \"%s\"\n",
+                doc->doctype);
+        free(doc->doctype);
+    }
+    ret = asprintf(&doc->doctype, "<!DOCTYPE %s SYSTEM \"%s\">\n",
+                       name, systemid);
+    if (0 > ret)
+        doc->doctype = NULL;
+}
+
+/* Char */
+void xml_char_free(xml_char *s) {
+    free(s);
+}
+
+xml_char *xml_char_strdup(const char *c) {
+    return strdup(c);
+}
+
+/******************************************************************************/
+/* Export */
+/******************************************************************************/
+
+static int xml_node_write(FILE *out, xml_node_ptr node, unsigned int depth)
+{
+    int ret = 0;
+    size_t i;
+    ret += fprintf(out, "%*s<%s", depth * 2, "", node->name);
+    for (i = 0; i < node->attributes.num; ++i)
+        ret += fprintf(out, "%s", (char *)node->attributes.data[i]);
+    if (0 == node->children.num && !node->content)
+        ret += fprintf(out, "/>\n");
+    else if (node->content) {
+        ret += fprintf(out, ">%s</%s>\n", node->content, node->name);
+    } else { /* Cannot have both content and children: because. */
+        ret += fprintf(out, ">\n");
+        for (i = 0; i < node->children.num; ++i)
+            ret += xml_node_write(out, node->children.data[i], depth + 1);
+        ret += fprintf(out, "%*s</%s>\n", depth * 2, "", node->name);
+    }
+    return ret;
+}
+
+int xml_doc_write(const char *outpath, xml_doc_ptr doc, const char *enc,
+                  int format __netloc_attribute_unused)
+{
+    FILE *out = fopen(outpath, "w");
+    if (!out)
+        return (fclose(out), -1);
+    int ret = fprintf(out, "<?xml version=\"%s\" encoding=\"%s\"?>\n%s",
+                      doc->xml_version, enc, doc->doctype ? doc->doctype : "");
+    ret += xml_node_write(out, doc->root, 0);
+    /* Close file */
+    fclose(out);
+    return ret;
+}
+
+/******************************************************************************/
+/* Import */
+/******************************************************************************/
 
 static inline char *ignore_spaces(char *buffer)
 {
@@ -275,14 +410,14 @@ static xml_doc_ptr xml_node_read_file(const char *path)
                     if ((end && eend && end < eend) || (end && !eend)) {
                         /* Multiple arguments */
                         *end = '\0';
-                        new = xml_node_new(buff);
+                        new = xml_node_new(NULL, buff);
                         *end = ' '; buff = end + 1;
                     } else if ((end && eend && end > eend) || (!end && eend)) {
                         /* No attribute */
                         if ('/' == *(eend - 1))
                             --eend;
                         *eend = '\0';
-                        new = xml_node_new(buff);
+                        new = xml_node_new(NULL, buff);
                         *eend = *(eend + 1) == '>' ? '/' : '>';
                         buff = eend;
                     } else  {
@@ -358,12 +493,12 @@ static xml_doc_ptr xml_node_read_file(const char *path)
                     if ((end && eend && end < eend) || (end && !eend)) {
                         /* Multiple arguments */
                         *end = '\0';
-                        xml_node_attr_add(crt_node, buff);
+                        xml_node_attr_load(crt_node, buff);
                         *end = ' '; buff = end + 1;
                     } else if ((end && eend && end > eend) || (!end && eend)) {
                         /* Last argument */
                         *eend = '\0';
-                        xml_node_attr_add(crt_node, buff);
+                        xml_node_attr_load(crt_node, buff);
                         *eend = '>'; buff = eend + 1;
                         parse_attr = 0;
                     } else  {

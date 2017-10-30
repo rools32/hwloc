@@ -2,7 +2,6 @@
 # See COPYING in top-level directory.
 
 SUBDIRS = \
-        utils \
         export \
 		topology \
         hardware \

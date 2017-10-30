@@ -21,12 +21,17 @@
 #include <private/autogen/config.h>
 #include <private/netloc.h>
 #include <private/netloc-xml.h>
+#include <private/utils/xml.h>
 
 #if defined(HWLOC_HAVE_LIBXML2)
 
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <libxml/xmlmemory.h>
+
+/******************************************************************************/
+/* Import */
+/******************************************************************************/
 
 /**
  * Load the netloc partition as described in the xml file, of which
@@ -885,6 +890,104 @@ static int netloc_xml_reader_clean_and_out(xmlDoc *doc)
         xmlCleanupParser();
 
     return NETLOC_SUCCESS;
+}
+
+
+/******************************************************************************/
+/* Export */
+/******************************************************************************/
+
+void xml_char_free(xml_char *s)
+{
+    xmlFree(s);
+}
+
+xml_char *xml_char_strdup(const char *s)
+{
+    return xmlCharStrdup(s);
+}
+
+xml_node_ptr xml_node_new(xml_ns_ptr ns, const xml_char *n)
+{
+    return xmlNewNode(ns, n);
+}
+
+void xml_node_free(xml_node_ptr node)
+{
+    xmlFreeNode(node);
+}
+
+void xml_node_attr_add(xml_node_ptr node, const xml_char *name,
+                       const xml_char *value)
+{
+    (void) xmlNewProp(node, name, value);
+}
+
+void xml_node_attr_cpy_add(xml_node_ptr pnode, const xml_char *name,
+                           const char *value)
+{
+    xmlChar *buff = xmlCharStrdup(value);
+    if (buff)
+        (void) xmlNewProp(pnode, name, buff);
+    xmlFree(buff);
+}
+
+void xml_node_child_add(xml_node_ptr p, xml_node_ptr c)
+{
+    (void) xmlAddChild(p, c);
+}
+
+xml_node_ptr xml_node_child_new(xml_node_ptr p, xml_ns_ptr ns,
+                                const xml_char *n,
+                                const xml_char *c)
+{
+    return xmlNewChild(p, ns, n, c);
+}
+
+void xml_node_merge(xml_node_ptr dest, xml_node_ptr src)
+{
+    xmlNodePtr children = src->children;
+    if (children)
+        (void) xmlAddChildList(dest, children);
+    xmlAttrPtr properties = src->properties;
+    if (properties)
+        (void) xmlCopyPropList(dest, properties);
+    xmlFreeNode(src);
+}
+
+int xml_node_has_child(xml_node_ptr node)
+{
+    return (NULL != node->children);
+}
+
+xml_doc_ptr xml_doc_new(const xml_char *version)
+{
+    return xmlNewDoc(version);
+}
+
+void xml_doc_free(xml_doc_ptr doc)
+{
+    xmlFreeDoc(doc);
+}
+
+xml_node_ptr xml_doc_set_root_element(xml_doc_ptr d,
+                                      xml_node_ptr n)
+{
+    return xmlDocSetRootElement(d, n);
+}
+
+int xml_doc_write(const char *out, xml_doc_ptr d,
+                  const char *e, int f)
+{
+    return xmlSaveFormatFileEnc(out, d, e, f);
+}
+
+void xml_dtd_subset_create(xml_doc_ptr doc,
+                           const xml_char *name,
+                           const xml_char *externalid,
+                           const xml_char *systemid)
+{
+    (void) xmlCreateIntSubset(doc, name, externalid, systemid);
 }
 
 #endif

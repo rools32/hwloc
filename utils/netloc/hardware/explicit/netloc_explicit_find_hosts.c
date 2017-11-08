@@ -167,21 +167,26 @@ int main(int argc, char **argv)
         /* Get the Netloc topology to find hwloc path */
         char *topopath = getenv("NETLOC_TOPOFILE");
         if (!topopath) {
-            fprintf(stderr, "Error: you need to set NETLOC_TOPOFILE in your environment.\n");
+            fprintf(stderr, "Error: you need to set NETLOC_TOPOFILE in your "
+                    "environment.\n");
         } else {
             topopath = strdup(topopath);
-            netloc_topology_t *netloc_topology = netloc_topology_construct(topopath);
+            netloc_topology_t *netloc_topology;
+            netloc_topology = netloc_topology_construct();
             if (netloc_topology == NULL) {
-                fprintf(stderr, "Error: netloc_topology_construct failed\n");
+                fprintf(stderr, "Error: netloc_topology_construct "
+                        "failed\n");
                 free(topopath);
                 return NETLOC_ERROR;
             }
+            netloc_topology->topopath = strdup(topopath);
 
             /* Find hwloc dir path */
             char *hwloc_path;
             if (netloc_topology->hwloc_dir_path[0] != '/') {
                 char *path_tmp = strdup(netloc_topology->topopath);
-                asprintf(&hwloc_path, "%s/%s", dirname(path_tmp), netloc_topology->hwloc_dir_path);
+                asprintf(&hwloc_path, "%s/%s", dirname(path_tmp),
+                         netloc_topology->hwloc_dir_path);
                 free(path_tmp);
             } else {
                 hwloc_path = strdup(netloc_topology->hwloc_dir_path);
@@ -210,7 +215,8 @@ int main(int argc, char **argv)
             /* if there is no hwloc file, let's write one */
             if (hwloc_file) {
                 if (hwloc_topology_export_xml(topology, hwloc_file, 0) == -1) {
-                    fprintf(stderr, "Error: netloc_topology_construct failed\n");
+                    fprintf(stderr, "Error: netloc_topology_construct "
+                            "failed\n");
                     free(topopath);
                     return NETLOC_ERROR;
                 }

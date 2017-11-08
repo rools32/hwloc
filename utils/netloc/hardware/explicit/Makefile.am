@@ -8,7 +8,9 @@ AM_CPPFLAGS = \
         -I$(top_builddir)/include \
         -I$(top_srcdir)/include
 
-LDADD = $(top_builddir)/netloc/libnetloc.la
+LDADD = \
+	$(top_builddir)/netloc/libnetloc.la \
+	$(top_builddir)/hwloc/libhwloc.la
 
 if BUILD_MPITOOLS
 bin_PROGRAMS = netloc_explicit_find_hosts

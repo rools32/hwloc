@@ -23,7 +23,7 @@ endif
 
 sources = \
         support.c \
-        topology.c \
+        network_explicit.c \
 	partition.c \
         edge.c \
         node.c \

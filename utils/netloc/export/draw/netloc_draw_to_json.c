@@ -519,10 +519,10 @@ static int handle_partitions(netloc_partition_t *partition,
     return NETLOC_SUCCESS;
 }
 
-static int handle_topos(netloc_topology_t *topology, json_t *json_topos)
+static int handle_topos(netloc_network_explicit_t *topology, json_t *json_topos)
 {
     char *ptopo, *basename_topo;
-    netloc_topology_iter_name_hwloctopos(topology, ptopo) {
+    netloc_network_explicit_iter_name_hwloctopos(topology, ptopo) {
         basename_topo = basename(ptopo);
         /* Not a diff file, so extension must be .xml */
         ptopo    = strrchr(basename_topo, '.');
@@ -532,7 +532,7 @@ static int handle_topos(netloc_topology_t *topology, json_t *json_topos)
     return NETLOC_SUCCESS;
 }
 
-static int write_json(netloc_topology_t *topology, FILE *output)
+static int write_json(netloc_network_explicit_t *topology, FILE *output)
 {
     json_t *json_root = json_dict_new();
     json_t *json_nodes = json_array_new();
@@ -565,7 +565,7 @@ static int write_json(netloc_topology_t *topology, FILE *output)
     /* Partitions */
     json_t *json_partitions = json_array_new();
     netloc_partition_t *partition, *partition_tmp __netloc_attribute_unused;
-    netloc_topology_iter_partitions(topology, partition, partition_tmp) {
+    netloc_network_explicit_iter_partitions(topology, partition, partition_tmp) {
         handle_partitions(partition, json_partitions);
         /* Nodes */
         netloc_partition_iter_nodes(partition, pnode) {
@@ -593,7 +593,7 @@ static int write_json(netloc_topology_t *topology, FILE *output)
     return NETLOC_SUCCESS;
 }
 
-static int netloc_to_json_draw(netloc_topology_t *topology)
+static int netloc_to_json_draw(netloc_network_explicit_t *topology)
 {
     int ret;
     FILE *output;
@@ -602,7 +602,7 @@ static int netloc_to_json_draw(netloc_topology_t *topology)
     char *basename = (char *)malloc(sizeof(char[basename_len + 1]));
     char *draw;
 
-    netloc_topology_read_hwloc(topology, 0, NULL);
+    netloc_network_explicit_read_hwloc(topology, 0, NULL);
 
     strncpy(basename, node_uri, basename_len);
     basename[basename_len] = '\0';
@@ -691,11 +691,12 @@ int main(int argc, char **argv)
         if (0 > asprintf(&topopath, "%s/%s", netlocpath, dir_entry->d_name))
             topopath = NULL;
 
-        netloc_topology_t *topology;
-        int ret = netloc_topology_xml_load(topopath, &topology);
+        netloc_network_explicit_t *topology;
+        int ret = netloc_network_explicit_xml_load(topopath, &topology);
         free(topopath);
         if (NETLOC_SUCCESS != ret) {
-            fprintf(stderr, "Error: netloc_topology_construct failed\n");
+            fprintf(stderr, "Error: netloc_network_explicit_construct "
+                    "failed\n");
             return ret;
         }
 
@@ -703,7 +704,7 @@ int main(int argc, char **argv)
 
         netloc_to_json_draw(topology);
 
-        netloc_topology_destruct(topology);
+        netloc_network_explicit_destruct(topology);
     }
     closedir(netlocdir);
 

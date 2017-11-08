@@ -22,14 +22,16 @@
  * On error, *ptopology is not set.
  *
  * \param path A valid path to the XML file describing the requested topology
- * \param ptopology A valid reference to an unitialized topology pointer
+ * \param ptopology A valid reference to an unitialized explicit network
+ *                  topology pointer
  *
  * \returns NETLOC_SUCCESS on success
  * \returns NETLOC_ERROR_NOENT if \ref path is not valid
  * \returns NETLOC_ERROR on error
  */
 extern int
-netloc_topology_xml_load(const char *path, netloc_topology_t **ptopology);
+netloc_network_explicit_xml_load(const char *path,
+                                 netloc_network_explicit_t **ptopology);
 
 /**
  * Check whether warnings and errors should be reported in stderr in

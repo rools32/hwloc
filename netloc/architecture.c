@@ -19,7 +19,7 @@ typedef struct netloc_analysis_data_t {
     void *userdata;
 } netloc_analysis_data;
 
-static int partition_topology_to_tleaf(netloc_topology_t *topology,
+static int partition_topology_to_tleaf(netloc_network_explicit_t *topology,
         netloc_partition_t *partition, int num_cores, netloc_arch_t *arch);
 static netloc_arch_tree_t *tree_merge(netloc_arch_tree_t *main,
         netloc_arch_tree_t *sub);
@@ -35,8 +35,9 @@ static netloc_arch_node_t *netloc_arch_node_construct(void);
     }
 
 /* Complete the topology to have a complete balanced tree  */
-void netloc_arch_tree_complete(netloc_arch_tree_t *tree, UT_array **down_degrees_by_level,
-        int num_hosts, int **parch_idx)
+void netloc_arch_tree_complete(netloc_arch_tree_t *tree,
+                               UT_array **down_degrees_by_level,
+                               int num_hosts, int **parch_idx)
 {
     int num_levels = tree->num_levels;
     NETLOC_int *max_degrees = tree->degrees;
@@ -101,8 +102,9 @@ NETLOC_int netloc_arch_tree_num_leaves(netloc_arch_tree_t *tree)
     return num_leaves;
 }
 
-static int get_current_resources(int *pnum_nodes, char ***pnodes, int **pslot_idx,
-        int **pslot_list, int **prank_list)
+static int
+get_current_resources(int *pnum_nodes, char ***pnodes, int **pslot_idx,
+                      int **pslot_list, int **prank_list)
 {
     char *filename = getenv("NETLOC_CURRENTSLOTS");
     char word[1024];
@@ -227,7 +229,7 @@ int netloc_arch_set_current_resources(netloc_arch_t *arch)
         node_list[n] = arch_node->node;
     }
 
-    ret = netloc_topology_read_hwloc(arch->topology, num_nodes, node_list);
+    ret = netloc_network_explicit_read_hwloc(arch->topology, num_nodes, node_list);
     if( NETLOC_SUCCESS != ret ) {
         goto ERROR;
     }
@@ -367,7 +369,7 @@ int netloc_arch_set_global_resources(netloc_arch_t *arch)
         current_nodes = (NETLOC_int *) malloc(sizeof(NETLOC_int[num_nodes]));
     }
 
-    ret = netloc_topology_read_hwloc(arch->topology, 0, NULL);
+    ret = netloc_network_explicit_read_hwloc(arch->topology, 0, NULL);
     if( NETLOC_SUCCESS != ret ) {
         goto ERROR;
     }
@@ -516,7 +518,7 @@ static int netloc_arch_tree_destruct(netloc_arch_tree_t *tree)
     return NETLOC_SUCCESS;
 }
 
-int partition_topology_to_tleaf(netloc_topology_t *topology,
+int partition_topology_to_tleaf(netloc_network_explicit_t *topology,
         netloc_partition_t *partition, int num_cores, netloc_arch_t *arch)
 {
     int ret = 0;
@@ -765,10 +767,10 @@ int netloc_arch_build(netloc_arch_t *arch, int add_slots)
     }
     topopath = strdup(topopath);
 
-    netloc_topology_t *topology;
-    int ret = netloc_topology_xml_load(topopath, &topology);
+    netloc_network_explicit_t *topology;
+    int ret = netloc_network_explicit_xml_load(topopath, &topology);
     if (NETLOC_SUCCESS != ret) {
-        fprintf(stderr, "Error: netloc_topology_construct failed\n");
+        fprintf(stderr, "Error: netloc_network_explicit_construct failed\n");
         free(topopath);
         return NETLOC_ERROR;
     }
@@ -780,7 +782,7 @@ int netloc_arch_build(netloc_arch_t *arch, int add_slots)
         fprintf(stderr, "Error: you need to set NETLOC_PARTITION in your environment.\n");
         fprintf(stderr, "\tIt can be: ");
         netloc_partition_t *partition_tmp;
-        netloc_topology_iter_partitions(topology, partition, partition_tmp) {
+        netloc_network_explicit_iter_partitions(topology, partition, partition_tmp) {
             fprintf(stderr, "%s%s", partition->name, partition_tmp ? ", ": "\n");
         }
         return NETLOC_ERROR;
@@ -802,7 +804,7 @@ netloc_arch_t * netloc_arch_construct(void)
 
 int netloc_arch_destruct(netloc_arch_t *arch)
 {
-    netloc_topology_destruct(arch->topology);
+    netloc_network_explicit_destruct(arch->topology);
 
     netloc_arch_node_t *node, *node_tmp;
     HASH_ITER(hh, arch->nodes_by_name, node, node_tmp) {

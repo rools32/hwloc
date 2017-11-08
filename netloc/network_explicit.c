@@ -15,14 +15,15 @@
 
 #include <private/netloc.h>
 
-netloc_topology_t *netloc_topology_construct()
+netloc_network_explicit_t *netloc_network_explicit_construct()
 {
-    netloc_topology_t *topology = NULL;
+    netloc_network_explicit_t *topology = NULL;
 
     /*
      * Allocate Memory
      */
-    topology = (netloc_topology_t *)calloc(1, sizeof(netloc_topology_t));
+    topology = (netloc_network_explicit_t *)
+        calloc(1, sizeof(netloc_network_explicit_t));
     if( NULL == topology ) {
         fprintf(stderr, "ERROR: Memory error: topology cannot be allocated\n");
         return NULL;
@@ -43,7 +44,7 @@ netloc_topology_t *netloc_topology_construct()
     return topology;
 }
 
-int netloc_topology_destruct(netloc_topology_t *topology)
+int netloc_network_explicit_destruct(netloc_network_explicit_t *topology)
 {
     /*
      * Sanity Check
@@ -71,7 +72,7 @@ int netloc_topology_destruct(netloc_topology_t *topology)
     HASH_ITER(hh2, topology->nodesByHostname, node, node_tmp) {
         HASH_DELETE(hh2, topology->nodesByHostname, node);
     }
-    netloc_topology_iter_nodes(topology, node, node_tmp) {
+    netloc_network_explicit_iter_nodes(topology, node, node_tmp) {
         HASH_DEL(topology->nodes, node);
         netloc_node_destruct(node);
     }
@@ -103,10 +104,11 @@ int netloc_topology_destruct(netloc_topology_t *topology)
     return NETLOC_SUCCESS;
 }
 
-int netloc_topology_find_reverse_edges(netloc_topology_t *topology)
+int
+netloc_network_explicit_find_reverse_edges(netloc_network_explicit_t *topology)
 {
     netloc_node_t *node, *node_tmp;
-    netloc_topology_iter_nodes(topology, node, node_tmp) {
+    netloc_network_explicit_iter_nodes(topology, node, node_tmp) {
         netloc_edge_t *edge, *edge_tmp;
         netloc_node_iter_edges(node, edge, edge_tmp) {
             netloc_node_t *dest = edge->dest;

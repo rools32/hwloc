@@ -171,10 +171,10 @@ int main(int argc, char **argv)
                     "environment.\n");
         } else {
             topopath = strdup(topopath);
-            netloc_topology_t *netloc_topology;
-            netloc_topology = netloc_topology_construct();
+            netloc_network_explicit_t *netloc_topology;
+            netloc_topology = netloc_network_explicit_construct();
             if (netloc_topology == NULL) {
-                fprintf(stderr, "Error: netloc_topology_construct "
+                fprintf(stderr, "Error: netloc_network_explicit_construct "
                         "failed\n");
                 free(topopath);
                 return NETLOC_ERROR;
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
             /* if there is no hwloc file, let's write one */
             if (hwloc_file) {
                 if (hwloc_topology_export_xml(topology, hwloc_file, 0) == -1) {
-                    fprintf(stderr, "Error: netloc_topology_construct "
+                    fprintf(stderr, "Error: netloc_network_explicit_construct "
                             "failed\n");
                     free(topopath);
                     return NETLOC_ERROR;

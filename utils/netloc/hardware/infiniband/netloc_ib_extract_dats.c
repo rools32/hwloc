@@ -283,7 +283,7 @@ static char *node_find_partition_name(node_t *node)
 }
 
 
-static int netloc_topology_find_partitions(void)
+static int netloc_network_explicit_find_partitions(void)
 {
     int ret = 0;
     int num_nodes;
@@ -343,10 +343,10 @@ static int netloc_topology_find_partitions(void)
     return ret;
 }
 
-static int netloc_topology_set_partitions(void)
+static int netloc_network_explicit_set_partitions(void)
 {
     /* Find the main partition for each node */
-    netloc_topology_find_partitions();
+    netloc_network_explicit_find_partitions();
 
     node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
@@ -536,7 +536,7 @@ int main(int argc, char **argv)
             free(route_filename);
 
             build_paths();
-            netloc_topology_set_partitions();
+            netloc_network_explicit_set_partitions();
 
             netloc_write_into_xml_file(nodes, partitions, subnet, outpath,
                                        hwlocpath,

@@ -528,15 +528,15 @@ static xml_doc_ptr xml_node_read_file(const char *path)
  * \ref part_node is a valid pointer to a DOM element.
  *
  * The returned element is to be added to the \ref
- * netloc_topology_t. If NULL is returned, then the partition is to be
- * ignored (i.e., it may be invalid or the /extra+structural/
+ * netloc_network_explicit_t. If NULL is returned, then the partition
+ * is to be ignored (i.e., it may be invalid or the /extra+structural/
  * partition).
  *
  * \param part_node A valid XML DOM node pointing to the proper <partition> tag
  * \param hwlocpath The path to the directory containing the hwloc
  *                  topology files
  * \param hwloc_topos A valid pointer to the hwloc_topos field in
- *                    \ref netloc_topology_t
+ *                    \ref netloc_network_explicit_t
  * \param topology A valid pointer to the current topology being loaded
  *
  * Returns
@@ -545,23 +545,23 @@ static xml_doc_ptr xml_node_read_file(const char *path)
 static netloc_partition_t *
 netloc_part_xml_load(xml_node_ptr part_node, char *hwlocpath,
                      netloc_hwloc_topology_t **hwloc_topos,
-                     netloc_topology_t *topology);
+                     netloc_network_explicit_t *topology);
 
 /**
  * Load the netloc node as described in the xml file, of which
  * \ref it_node is a valid pointer to a DOM element.
  *
  * The returned element is to be added to the \ref
- * netloc_topology_t. If the \ref netloc_node_t returned has nsubnodes
- * > 0, this means that the node is virtual. The subnodes (contained
- * in the node->subnodes array) have to be added before the virtual
- * node to ease the hashtable liberation.
+ * netloc_network_explicit_t. If the \ref netloc_node_t returned has
+ * nsubnodes > 0, this means that the node is virtual. The subnodes
+ * (contained in the node->subnodes array) have to be added before the
+ * virtual node to ease the hashtable liberation.
  *
  * \param it_node A valid XML DOM node pointing to the proper <node> tag
  * \param hwlocpath The path to the directory containing the hwloc topology
  *                  files
  * \param hwloc_topos A valid pointer to the hwloc_topos field in
- *                    \ref netloc_topology_t
+ *                    \ref netloc_network_explicit_t
  *
  * Returns
  *   A newly allocated and initialized pointer to the node information.
@@ -576,7 +576,7 @@ netloc_node_xml_load(xml_node_ptr it_node, char *hwlocpath,
  *
  * The returned element is to be added to the corresponding \ref
  * netloc_node_t. The node has to be already part of the \ref
- * netloc_topology_t
+ * netloc_network_explicit_t
  *
  * \param it_edge A valid XML DOM node pointing to the proper <connexion> tag
  * \param topology A valid pointer to the current topology being loaded
@@ -586,7 +586,7 @@ netloc_node_xml_load(xml_node_ptr it_node, char *hwlocpath,
  *   A newly allocated and initialized pointer to the edge information.
  */
 static netloc_edge_t *
-netloc_edge_xml_load(xml_node_ptr it_edge, netloc_topology_t *topology,
+netloc_edge_xml_load(xml_node_ptr it_edge, netloc_network_explicit_t *topology,
                      netloc_partition_t *partition);
 
 /**
@@ -606,14 +606,14 @@ static netloc_physical_link_t *
 netloc_physical_link_xml_load(xml_node_ptr it_link, netloc_edge_t *edge,
                               netloc_partition_t *partition);
 
-int netloc_topology_nolibxml_load(const char *path,
-                                  netloc_topology_t **ptopology)
+int netloc_network_explicit_nolibxml_load(const char *path,
+                                          netloc_network_explicit_t **ptopology)
 {
     int ret = NETLOC_ERROR;
     char *buff;
     xml_node_ptr machine_node, net_node = NULL, crt_node = NULL;
     xml_doc_ptr doc = NULL;
-    netloc_topology_t *topology = NULL;
+    netloc_network_explicit_t *topology = NULL;
     netloc_hwloc_topology_t *hwloc_topos = NULL;
     char *hwlocpath = NULL;
 
@@ -628,7 +628,7 @@ int netloc_topology_nolibxml_load(const char *path,
         return NETLOC_ERROR_NOENT;
     }
 
-    topology = netloc_topology_construct();
+    topology = netloc_network_explicit_construct();
     if (NULL == topology)
         return NETLOC_ERROR;
 
@@ -637,7 +637,7 @@ int netloc_topology_nolibxml_load(const char *path,
     if (NULL == machine_node) {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: unable to parse the XML file.\n");
-        return (netloc_topology_destruct(topology), NETLOC_ERROR_NOENT);
+        return (netloc_network_explicit_destruct(topology), NETLOC_ERROR_NOENT);
     }
     if ( !strcmp("machine", machine_node->name)
          && 0 < machine_node->children.num ) {
@@ -649,7 +649,7 @@ int netloc_topology_nolibxml_load(const char *path,
                 fprintf(stderr, "ERROR: incorrect version number (\"%s\"), "
                         "please generate your input file again.\n", buff);
             free(buff); buff = NULL;
-            netloc_topology_destruct(topology); topology = NULL;
+            netloc_network_explicit_destruct(topology); topology = NULL;
             goto clean_and_out;
         }
         free(buff); buff = NULL;
@@ -674,7 +674,7 @@ int netloc_topology_nolibxml_load(const char *path,
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: invalid XML file. Please, generate your "
                     "input file again.\n");
-        netloc_topology_destruct(topology); topology = NULL;
+        netloc_network_explicit_destruct(topology); topology = NULL;
         goto clean_and_out;
     }
     if (hwlocpath) {
@@ -692,7 +692,7 @@ int netloc_topology_nolibxml_load(const char *path,
                 fprintf(stderr, "ERROR: could not open hwloc directory: "
                         "\"%s\"\n", hwlocpath);
             perror("opendir");
-            netloc_topology_destruct(topology);
+            netloc_network_explicit_destruct(topology);
             topology = NULL;
             goto clean_and_out;
         } else {
@@ -703,7 +703,7 @@ int netloc_topology_nolibxml_load(const char *path,
     if (NULL == net_node || 0 != strcmp("network", net_node->name)) {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: cannot read the topology in %s.\n", path);
-        netloc_topology_destruct(topology); topology = NULL;
+        netloc_network_explicit_destruct(topology); topology = NULL;
         goto clean_and_out;
     }
     netloc_network_type_t transport_type;
@@ -713,7 +713,7 @@ int netloc_topology_nolibxml_load(const char *path,
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: transport type not found, please generate "
                     "your input file again.\n");
-        netloc_topology_destruct(topology); topology = NULL;
+        netloc_network_explicit_destruct(topology); topology = NULL;
         goto clean_and_out;
     } else if (NETLOC_NETWORK_TYPE_INVALID ==
                (transport_type = netloc_network_type_decode(buff))) {
@@ -721,7 +721,7 @@ int netloc_topology_nolibxml_load(const char *path,
             fprintf(stderr, "ERROR: invalid network type (\"%s\"), please "
                     "generate your input file again.\n", buff);
         free(buff); buff = NULL;
-        netloc_topology_destruct(topology); topology = NULL;
+        netloc_network_explicit_destruct(topology); topology = NULL;
         goto clean_and_out;
     }
     free(buff); buff = NULL;
@@ -734,7 +734,7 @@ int netloc_topology_nolibxml_load(const char *path,
     } else {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: cannot read the subnet in %s\n", path);
-        netloc_topology_destruct(topology); topology = NULL;
+        netloc_network_explicit_destruct(topology); topology = NULL;
         goto clean_and_out;
     }
 
@@ -787,11 +787,11 @@ int netloc_topology_nolibxml_load(const char *path,
     topology->subnet_id      = strdup(subnet);
     topology->transport_type = transport_type;
 
-    if (netloc_topology_find_reverse_edges(topology) != NETLOC_SUCCESS) {
+    if (netloc_network_explicit_find_reverse_edges(topology) != NETLOC_SUCCESS) {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: cannot find reverse corresponding "
                     "edges.\n");
-        netloc_topology_destruct(topology); topology = NULL;
+        netloc_network_explicit_destruct(topology); topology = NULL;
         goto clean_and_out;
     }
     ret = NETLOC_SUCCESS;
@@ -808,7 +808,7 @@ int netloc_topology_nolibxml_load(const char *path,
 static netloc_partition_t * /* to become explicit */
 netloc_part_xml_load(xml_node_ptr part, char *hwloc_path,
                      netloc_hwloc_topology_t **hwloc_topos,
-                     netloc_topology_t *topology)
+                     netloc_network_explicit_t *topology)
 {
     xml_node_ptr explicit_node = NULL, nodes_node, edges_node;
     char *strBuff, *buff;
@@ -1092,7 +1092,7 @@ netloc_node_xml_load(xml_node_ptr it_node, char *hwlocpath,
 }
 
 static netloc_edge_t *
-netloc_edge_xml_load(xml_node_ptr it_edge, netloc_topology_t *topology,
+netloc_edge_xml_load(xml_node_ptr it_edge, netloc_network_explicit_t *topology,
                      netloc_partition_t *partition)
 {
     xml_node_ptr tmp;
@@ -1126,7 +1126,7 @@ netloc_edge_xml_load(xml_node_ptr it_edge, netloc_topology_t *topology,
     if (0 < it_edge->children.num && it_edge->children.data
         && (tmp = it_edge->children.data[0]) && 0 == strcmp("src", tmp->name)
         && tmp->content) {
-        netloc_topology_find_node(topology, tmp->content, edge->node);
+        netloc_network_explicit_find_node(topology, tmp->content, edge->node);
     } else {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: cannot find connexion's source node.\n");
@@ -1136,7 +1136,7 @@ netloc_edge_xml_load(xml_node_ptr it_edge, netloc_topology_t *topology,
     if (1 < it_edge->children.num && it_edge->children.data
         && (tmp = it_edge->children.data[1]) && 0 == strcmp("dest", tmp->name)
         && tmp->content) {
-        netloc_topology_find_node(topology, tmp->content, edge->dest);
+        netloc_network_explicit_find_node(topology, tmp->content, edge->dest);
     } else {
         if (netloc__xml_verbose())
             fprintf(stderr, "ERROR: cannot find connexion's destination "

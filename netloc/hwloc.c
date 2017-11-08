@@ -20,8 +20,8 @@
 
 static UT_icd topos_icd = {sizeof(hwloc_topology_t), NULL, NULL, NULL};
 
-int netloc_topology_read_hwloc(netloc_topology_t *topology, int num_nodes,
-        netloc_node_t **node_list)
+int netloc_network_explicit_read_hwloc(netloc_network_explicit_t *topology,
+                                       int num_nodes, netloc_node_t **node_list)
 {
     int ret = NETLOC_ERROR, all = 0, num_topos = 0, n = 0;
 
@@ -44,7 +44,7 @@ int netloc_topology_read_hwloc(netloc_topology_t *topology, int num_nodes,
             fprintf(stderr, "ERROR: node_list cannot be allocated\n");
             goto ERROR;
         }
-        netloc_topology_iter_nodes(topology, pnode, ptmp) {
+        netloc_network_explicit_iter_nodes(topology, pnode, ptmp) {
             node_list[n++] = pnode;
         }
         all = 1;
@@ -62,7 +62,8 @@ int netloc_topology_read_hwloc(netloc_topology_t *topology, int num_nodes,
             ret = hwloc_topology_set_xml(topology->hwloc_topos[node_id],
                                          topology->hwlocpaths[node_id]);
             if (ret == -1) {
-                fprintf(stderr, "WARN: no topology for %s\n", topology->hwlocpaths[node_id]);
+                fprintf(stderr, "WARN: no topology for %s\n",
+                        topology->hwlocpaths[node_id]);
                 hwloc_topology_destroy(topology->hwloc_topos[node_id]);
                 topology->hwloc_topos[node_id] = NULL;
                 continue;
@@ -92,7 +93,7 @@ int netloc_topology_read_hwloc(netloc_topology_t *topology, int num_nodes,
         }
     }
 
-    printf("%d hwloc topolog%s found:\n", num_topos, num_topos > 1 ? "ies" : "y");
+    printf("%d hwloc topolog%s found:\n", num_topos, num_topos > 1 ? "ies":"y");
     for (unsigned int p = 0; p < topology->nb_hwloc_topos; p++) {
         if (topology->hwloc_topos[p])
             printf("\t'%s'\n", topology->hwlocpaths[p]);
@@ -109,9 +110,11 @@ ERROR:
 }
 
 /* Set the info from hwloc of the node in the correspondig arch */
-int netloc_arch_node_get_hwloc_info(netloc_arch_node_t *arch_node, netloc_topology_t *nettopology)
+int netloc_arch_node_get_hwloc_info(netloc_arch_node_t *arch_node,
+                                    netloc_network_explicit_t *nettopology)
 {
-    hwloc_topology_t topology = nettopology->hwloc_topos[arch_node->node->hwloc_topo_idx];
+    hwloc_topology_t topology;
+    topology = nettopology->hwloc_topos[arch_node->node->hwloc_topo_idx];
 
     hwloc_obj_t root = hwloc_get_root_obj(topology);
 

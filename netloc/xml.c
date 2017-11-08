@@ -24,12 +24,14 @@
 #include <libxml/xmlmemory.h>
 
 extern int
-netloc_topology_libxml_load(const char *path, netloc_topology_t **ptopology);
+netloc_network_explicit_libxml_load(const char *path,
+                                    netloc_network_explicit_t **ptopology);
 
 #else
 
 extern int
-netloc_topology_nolibxml_load(const char *path, netloc_topology_t **ptopology);
+netloc_network_explicit_nolibxml_load(const char *path,
+                                      netloc_network_explicit_t **ptopology);
 
 #endif /* defined(HWLOC_HAVE_LIBXML2) */
 
@@ -52,16 +54,18 @@ int netloc__xml_verbose(void)
 
 #if defined(HWLOC_HAVE_LIBXML2)
 
-int netloc_topology_xml_load(const char *path, netloc_topology_t **ptopology)
+int netloc_network_explicit_xml_load(const char *path,
+                                     netloc_network_explicit_t **ptopology)
 {
-    return netloc_topology_libxml_load(path, ptopology);
+    return netloc_network_explicit_libxml_load(path, ptopology);
 }
 
 #else
 
-int netloc_topology_xml_load(const char *path, netloc_topology_t **ptopology)
+int netloc_network_explicit_xml_load(const char *path,
+                                     netloc_network_explicit_t **ptopology)
 {
-    return netloc_topology_nolibxml_load(path, ptopology);
+    return netloc_network_explicit_nolibxml_load(path, ptopology);
 }
 
 #endif

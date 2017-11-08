@@ -25,9 +25,6 @@
 #include <netloc/uthash.h>
 #include <netloc/utarray.h>
 
-#include <dirent.h>
-#include <libgen.h>
-
 extern int
 netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
                       const char *subnet, const char *path,

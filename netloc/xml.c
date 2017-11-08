@@ -11,11 +11,8 @@
  */
 
 #define _GNU_SOURCE	   /* See feature_test_macros(7) */
+
 #include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <libgen.h>
 
 #include <private/autogen/config.h>
 #include <private/netloc.h>

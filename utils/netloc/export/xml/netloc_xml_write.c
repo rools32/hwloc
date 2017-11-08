@@ -15,6 +15,8 @@
 
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 
+#include <dirent.h>
+
 #include <netloc.h>
 #include <private/netloc.h>
 #include <private/autogen/config.h>
@@ -23,9 +25,6 @@
 
 #include <netloc/uthash.h>
 #include <netloc/utarray.h>
-
-#include <dirent.h>
-#include <libgen.h>
 
 static int
 node_belongs_to_a_partition(const node_t *node, const unsigned int nparts) {

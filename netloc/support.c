@@ -24,7 +24,6 @@
 #include <netloc/uthash.h>
 #include <netloc/utarray.h>
 #include <dirent.h>
-#include <libgen.h> // for dirname
 
 char *netloc_line_get_next_token(char **string, char c)
 {

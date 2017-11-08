@@ -13,7 +13,6 @@
 
 #include <sys/types.h>
 #include <dirent.h>
-#include <libgen.h>
 
 #include <private/netloc.h>
 #include <netloc.h>

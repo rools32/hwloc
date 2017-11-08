@@ -15,7 +15,6 @@
 #include <string.h>
 #include <assert.h>
 #include <dirent.h>
-#include <libgen.h>
 
 #include <private/netloc.h>
 #include <private/netloc-xml.h>

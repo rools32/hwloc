@@ -32,14 +32,14 @@ netloc_network_explicit_t *netloc_network_explicit_construct()
     /*
      * Initialize the structure
      */
+    topology->parent.type           = NETLOC_TOPOLOGY_TYPE_EXPLICIT;
+    topology->parent.transport_type = NETLOC_NETWORK_TYPE_INVALID;
     topology->nodes           = NULL;
     topology->physical_links  = NULL;
     topology->partitions      = NULL;
-    topology->type            = NETLOC_TOPOLOGY_TYPE_INVALID;
     topology->nodesByHostname = NULL;
     topology->hwloc_topos     = NULL;
     topology->hwlocpaths      = NULL;
-    topology->transport_type  = NETLOC_NETWORK_TYPE_INVALID;
 
     return topology;
 }
@@ -51,6 +51,9 @@ int netloc_network_explicit_destruct(netloc_network_explicit_t *topology)
      */
     if( NULL == topology ) {
         fprintf(stderr, "Error: Detaching from a NULL pointer\n");
+        return NETLOC_ERROR;
+    } else if (NETLOC_TOPOLOGY_TYPE_EXPLICIT != topology->parent.type) {
+        fprintf(stderr, "Error: Parameter of wrong topology type\n");
         return NETLOC_ERROR;
     }
 

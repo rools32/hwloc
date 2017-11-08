@@ -59,7 +59,7 @@
 typedef enum {
     NETLOC_CMP_SAME    =  0,  /**< Compared as the Same */
     NETLOC_CMP_SIMILAR = -1,  /**< Compared as Similar, but not the Same */
-    NETLOC_CMP_DIFF    = -2   /**< Compared as Different */
+    NETLOC_CMP_DIFF    = -2,  /**< Compared as Different */
 } netloc_compare_type_t;
 
 /**
@@ -75,8 +75,10 @@ typedef enum {
  * Enumerated type for the various types of supported topologies
  */
 typedef enum {
-    NETLOC_TOPOLOGY_TYPE_INVALID = 0, /**< Invalid */
-    NETLOC_TOPOLOGY_TYPE_TREE    = 1,  /**< Tree */
+    NETLOC_TOPOLOGY_TYPE_INVALID  = 0,  /**< Invalid */
+    NETLOC_TOPOLOGY_TYPE_TREE     = 1,  /**< Tree */
+    NETLOC_TOPOLOGY_TYPE_TORUS    = 2,  /**< Torus */
+    NETLOC_TOPOLOGY_TYPE_EXPLICIT = 3,  /**< Explicit */
 } netloc_topology_type_t;
 
 /**
@@ -95,6 +97,8 @@ typedef enum {
 
 /* Pre declarations to avoid inter dependency problems */
 /** \cond IGNORE */
+struct netloc_machine_t;
+typedef struct netloc_machine_t netloc_machine_t;
 struct netloc_partition_t;
 typedef struct netloc_partition_t netloc_partition_t;
 struct netloc_network_explicit_t;
@@ -110,7 +114,11 @@ typedef struct netloc_path_t netloc_path_t;
 struct netloc_hwloc_topology_t;
 typedef struct netloc_hwloc_topology_t netloc_hwloc_topology_t;
 
+struct netloc_network_t;
+typedef struct netloc_network_t netloc_network_t;
+/* To be changed in order to create a type to be derived */
 typedef void netloc_topology_t;
+
 struct netloc_arch_tree_t;
 typedef struct netloc_arch_tree_t netloc_arch_tree_t;
 struct netloc_arch_node_t;
@@ -119,7 +127,27 @@ struct netloc_arch_node_slot_t;
 typedef struct netloc_arch_node_slot_t netloc_arch_node_slot_t;
 struct netloc_arch_t;
 typedef struct netloc_arch_t netloc_arch_t;
+
+struct netloc_allocation_t;
+typedef struct netloc_allocation_t netloc_allocation_t;
+struct netloc_res_t;
+typedef struct netloc_res_t netloc_res_t;
 /** \endcond */
+
+/**
+ * \struct netloc_machine_t
+ * \brief Netloc Machine Description
+ */
+struct netloc_machine_t {
+    /** Topology path */
+    char *topopath;
+
+    /** Partition List */
+    netloc_partition_t *partitions; /* Hash table of partitions by name */
+
+    /** current user's allocation */
+    netloc_allocation_t *allocation;
+};
 
 /**
  * \struct netloc_partition_t
@@ -136,6 +164,22 @@ struct netloc_partition_t {
 };
 
 /**
+ * \struct netloc_network_t
+ * \brief Common Netloc Network Description
+ *
+ * This the common parts for each kind of netloc topologies.
+ *
+ * \note Must be initialized within the specific network constructor function.
+ */
+struct netloc_network_t {
+    /** Type of the graph */
+    netloc_topology_type_t type;
+
+    /* Physical Transport Type */
+    netloc_network_type_t transport_type;
+};
+
+/**
  * \struct netloc_network_explicit_t
  * \brief Netloc Explicit Network Description
  *
@@ -144,6 +188,8 @@ struct netloc_partition_t {
  * \note Must be initialized with \ref netloc_network_explicit_construct()
  */
 struct netloc_network_explicit_t {
+    netloc_network_t parent;
+
     /** Topology path */
     char *topopath;
 
@@ -165,12 +211,6 @@ struct netloc_network_explicit_t {
     unsigned int nb_hwloc_topos;
     char **hwlocpaths;
     hwloc_topology_t *hwloc_topos;
-
-    /** Type of the graph */
-    netloc_topology_type_t type;
-
-    /* Physical Transport Type */
-    netloc_network_type_t transport_type;
 };
 
 /**
@@ -275,7 +315,6 @@ struct netloc_edge_t {
     void *userdata;
 };
 
-
 struct netloc_physical_link_t {
     UT_hash_handle hh;       /* makes this structure hashable */
 
@@ -323,6 +362,19 @@ struct netloc_hwloc_topology_t {
 /**********************************************************************
  *        Architecture structures
  **********************************************************************/
+struct netloc_allocation_t {
+    netloc_res_t *res;
+    /* TODO : Add things needed */
+};
+
+struct netloc_res_t {
+    netloc_topology_t *toporef;
+    int num_elems;
+    int *idx; /**< Array of size num_elems. Contain cores indices */
+    int *costs; /**< Array of size \ref toporef->num_dims. Contain comm costs */
+    netloc_res_t *subres;
+};
+
 struct netloc_arch_tree_t {
     NETLOC_int num_levels;
     NETLOC_int *degrees;

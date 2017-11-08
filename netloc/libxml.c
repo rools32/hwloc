@@ -298,7 +298,7 @@ int netloc_network_explicit_libxml_load(const char *path,
     topology->topopath       = strdup(path);
     topology->hwloc_dir_path = strdup(hwlocpath);
     topology->subnet_id      = strdup(subnet);
-    topology->transport_type = transport_type;
+    topology->parent.transport_type = transport_type;
 
     if (netloc_network_explicit_find_reverse_edges(topology) != NETLOC_SUCCESS) {
         netloc_network_explicit_destruct(topology);

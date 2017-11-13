@@ -645,9 +645,9 @@ netloc_edge_xml_load(xmlNodePtr it_edge, netloc_network_explicit_t *topology,
     }
     /* Add edge to its node if it does not already exists */
     netloc_edge_t *edge_tmp = NULL;
-    HASH_FIND_PTR(edge->node->edges, &edge->dest, edge_tmp);
+    HASH_FIND_STR(edge->node->edges, edge->dest->physical_id, edge_tmp);
     if (NULL == edge_tmp) {
-        HASH_ADD_PTR(edge->node->edges, dest, edge);
+        HASH_ADD_STR(edge->node->edges, dest->physical_id, edge);
         /* Set partition */
         if (partition)
             utarray_push_back(edge->partitions, &partition);

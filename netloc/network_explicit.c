@@ -117,7 +117,7 @@ netloc_network_explicit_find_reverse_edges(netloc_network_explicit_t *topology)
             netloc_node_t *dest = edge->dest;
             if (dest > node) {
                 netloc_edge_t *reverse_edge;
-                HASH_FIND_PTR(dest->edges, &node, reverse_edge);
+                HASH_FIND_STR(dest->edges, node->physical_id, reverse_edge);
                 if (reverse_edge == NULL) {
                     return NETLOC_ERROR;
                 }

@@ -83,11 +83,11 @@ int netloc_node_destruct(netloc_node_t * node)
     return NETLOC_SUCCESS;
 }
 
-char *netloc_node_pretty_print(netloc_node_t* node)
+char *netloc_node_pretty_print(const netloc_node_t *node)
 {
     char * str = NULL;
 
-    asprintf(&str, " [%23s]/[%d] -- %s (%d links)",
+    asprintf(&str, " [%23s]/[%ld] -- %s (%d links)",
              node->physical_id,
              node->logical_id,
              node->description,

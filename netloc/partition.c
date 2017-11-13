@@ -16,11 +16,12 @@
 #include <private/netloc.h>
 #include <netloc.h>
 
-netloc_partition_t * netloc_partition_construct(unsigned int id, char *name)
+netloc_partition_t * netloc_partition_construct(const unsigned int id,
+                                                const char *name)
 {
     netloc_partition_t *partition = NULL;
 
-    partition = (netloc_partition_t*)malloc(sizeof(netloc_partition_t));
+    partition = (netloc_partition_t *) malloc(sizeof(netloc_partition_t));
     if (NULL == partition) {
         return NULL;
     }
@@ -46,7 +47,8 @@ int netloc_partition_destruct(netloc_partition_t * partition)
     return NETLOC_SUCCESS;
 }
 
-int netloc_edge_is_in_partition(netloc_edge_t *edge, netloc_partition_t *partition)
+int netloc_edge_is_in_partition(const netloc_edge_t *edge,
+                                const netloc_partition_t *partition)
 {
     netloc_partition_iter_edges(partition, pedge) {
         if (edge == *pedge)
@@ -55,7 +57,8 @@ int netloc_edge_is_in_partition(netloc_edge_t *edge, netloc_partition_t *partiti
     return 0;
 }
 
-int netloc_node_is_in_partition(netloc_node_t *node, netloc_partition_t *partition)
+int netloc_node_is_in_partition(const netloc_node_t *node,
+                                const netloc_partition_t *partition)
 {
     netloc_partition_iter_nodes(partition, pnode) {
         if (node == *pnode)

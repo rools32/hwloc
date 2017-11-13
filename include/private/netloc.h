@@ -228,7 +228,7 @@ struct netloc_node_t {
     char physical_id[20];
 
     /** Logical ID of the node (if any) */
-    int logical_id;
+    long logical_id;
 
     /** Type of the node */
     netloc_node_type_t type;
@@ -488,7 +488,8 @@ int netloc_network_explicit_read_hwloc(netloc_network_explicit_t *topology,
  * Returns
  *   A newly allocated pointer to the partition information.
  */
-netloc_partition_t *netloc_partition_construct(unsigned int id, char *name);
+netloc_partition_t *netloc_partition_construct(const unsigned int id,
+                                               const char *name);
 
 /**
  * Destructor for netloc_partition_t
@@ -531,7 +532,7 @@ netloc_node_t *netloc_node_construct(void);
  */
 int netloc_node_destruct(netloc_node_t *node);
 
-char *netloc_node_pretty_print(netloc_node_t* node);
+char *netloc_node_pretty_print(const netloc_node_t *node);
 
 #define netloc_node_get_num_subnodes(node) \
     (node)->nsubnodes
@@ -560,8 +561,8 @@ char *netloc_node_pretty_print(netloc_node_t* node);
 #define netloc_node_iter_paths(node, path,_tmp) \
     HASH_ITER(hh, (node)->paths, path, _tmp)
 
-int netloc_node_is_in_partition(netloc_node_t *node,
-                                netloc_partition_t *partition);
+int netloc_node_is_in_partition(const netloc_node_t *node,
+                                const netloc_partition_t *partition);
 
 /*************************************************/
 
@@ -587,11 +588,12 @@ netloc_edge_t *netloc_edge_construct();
  */
 int netloc_edge_destruct(netloc_edge_t *edge);
 
-char * netloc_edge_pretty_print(netloc_edge_t* edge);
+char * netloc_edge_pretty_print(const netloc_edge_t* edge);
 
 void netloc_edge_reset_uid(void);
 
-int netloc_edge_is_in_partition(netloc_edge_t *edge, netloc_partition_t *partition);
+int netloc_edge_is_in_partition(const netloc_edge_t *edge,
+                                const netloc_partition_t *partition);
 
 #define netloc_edge_get_num_links(edge) \
     utarray_len((edge)->physical_links)

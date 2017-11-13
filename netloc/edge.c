@@ -49,11 +49,11 @@ netloc_edge_t * netloc_edge_construct()
     return edge;
 }
 
-char * netloc_edge_pretty_print(netloc_edge_t* edge)
+char * netloc_edge_pretty_print(const netloc_edge_t *edge)
 {
     char * str = NULL;
 
-    asprintf(&str, " [%23s]/[%d] -- [%23s]/[%d] (%f gbits, %d links)",
+    asprintf(&str, " [%23s]/[%ld] -- [%23s]/[%ld] (%f gbits, %d links)",
              edge->node->physical_id, edge->node->logical_id,
              edge->dest->physical_id, edge->dest->logical_id,
              edge->total_gbits, utarray_len(edge->physical_links));

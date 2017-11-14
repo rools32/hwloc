@@ -93,7 +93,7 @@ static inline void insert_xml_link(xml_node_ptr links_node,
 }
 
 static inline void insert_xml_edge(xml_node_ptr con_node, edge_t *edge,
-                                   node_t *node)
+                                   node_t *node, node_t *nodes)
 {
     xml_char *buff = NULL;
     char *strBuff = NULL;
@@ -150,7 +150,7 @@ static inline void insert_xml_edge(xml_node_ptr con_node, edge_t *edge,
             assert(real_node);
             subcon_node = xml_node_child_new(subcons_node, NULL,
                                              BAD_CAST "connexion", NULL);
-            insert_xml_edge(subcon_node, subedge, real_node);
+            insert_xml_edge(subcon_node, subedge, real_node, nodes);
         }
     } else {
         /* Add links */
@@ -219,7 +219,7 @@ static inline void insert_xml_node(xml_node_ptr crt_node, node_t *node,
 }
 
 static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
-                               const unsigned int len_partitions)
+                               const unsigned int len_partitions, node_t *nodes)
 {
     char *strBuff;
     unsigned int part_size = 0, strBuffSize;
@@ -277,7 +277,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
                 continue;
             crt_node = xml_node_child_new(cons_node, NULL,
                                           BAD_CAST "connexion", NULL);
-            insert_xml_edge(crt_node, edge, node);
+            insert_xml_edge(crt_node, edge, node, nodes);
         }
     }
     if (!xml_node_has_child(nodes_node)
@@ -354,7 +354,7 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
     }
     /* Add partitions */
     int npartitions = utarray_len(partitions);
-    char **ppartition = (char **)utarray_front(partitions);
+    partition_t **ppartition = (partition_t **)utarray_front(partitions);
     for (int p = 0; p < npartitions; ++p) {
         unsigned int part_size = 0;
         xml_node_ptr part_node = NULL, crt_node = NULL, nodes_node = NULL,
@@ -362,8 +362,9 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
         part_node = xml_node_child_new(network_node, NULL,
                                        BAD_CAST "partition", NULL);
         /* Set name */
-        if (ppartition && 0 < strlen(*ppartition)) {
-            xml_node_attr_cpy_add(part_node, BAD_CAST "name", *ppartition);
+        if (ppartition && *ppartition && 0 < strlen((*ppartition)->name)) {
+            xml_node_attr_cpy_add(part_node, BAD_CAST "name",
+                                  (*ppartition)->name);
         }
         /* Add explicit */
         explicit_node = xml_node_child_new(part_node, NULL,
@@ -415,7 +416,7 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
                     continue;
                 crt_node = xml_node_child_new(cons_node, NULL,
                                               BAD_CAST "connexion", NULL);
-                insert_xml_edge(crt_node, edge, node);
+                insert_xml_edge(crt_node, edge, node, nodes);
             }
         }
         /* Set size */
@@ -426,12 +427,12 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
         }
         strBuff = NULL;
         /* Get next partition */
-        ppartition = (char **)utarray_next(partitions, ppartition);
+        ppartition = (partition_t **)utarray_next(partitions, ppartition);
     }
     /*
      * Add structural/extra edges
      */
-    insert_extra(network_node, full_hwloc_path, utarray_len(partitions));
+    insert_extra(network_node, full_hwloc_path, utarray_len(partitions), nodes);
     /*
      * Dumping document to stdio or file
      */

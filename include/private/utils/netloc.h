@@ -19,12 +19,30 @@
 
 #define MAX_STR 20
 
+struct partition_t;
+typedef struct partition_t partition_t;
 struct node_t;
 typedef struct node_t node_t;
 struct edge_t;
 typedef struct edge_t edge_t;
 struct physical_link_t;
 typedef struct physical_link_t physical_link_t;
+
+/******************************************************************************/
+/* New abstract datatype for netloc */
+
+struct netloc_new_partition_t;
+typedef struct netloc_new_partition_t netloc_new_partition_t;
+
+struct netloc_new_partition_t {
+    /* Topology description */
+    netloc_topology_t *topology;
+
+    /* Complete topology, containing every nodes and edges */
+    netloc_network_explicit_t *full_topo;
+};
+
+/******************************************************************************/
 
 struct edge_t {
     UT_hash_handle hh;         /* makes this structure hashable */
@@ -49,9 +67,11 @@ struct node_t {
     UT_array *physical_links;
     node_t *subnodes; /* Hash table of subnodes */
 };
-extern node_t *nodes;
 
-extern UT_array *partitions;
+struct partition_t {
+    char *name;
+    UT_array *nodes;
+};
 
 struct physical_link_t {
     unsigned long long int int_id;
@@ -97,12 +117,12 @@ typedef struct {
 } path_source_t;
 extern path_source_t *paths;
 
-static inline int node_is_virtual(node_t *node)
+static inline int node_is_virtual(const node_t *node)
 {
     return (NULL != node->subnodes);
 }
 
-static inline int edge_is_virtual(edge_t *edge)
+static inline int edge_is_virtual(const edge_t *edge)
 {
     return (NULL != edge->subedges);
 }

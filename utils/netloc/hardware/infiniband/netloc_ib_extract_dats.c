@@ -31,14 +31,15 @@
 
 unsigned long long int global_link_idx = 0;
 
-node_t *nodes = NULL;
-UT_array *partitions = NULL;
 route_source_t *routes = NULL;
 path_source_t *paths = NULL;
 
-int read_routes(char *subnet, char *path, char *route_filename);
-int read_discover(char *subnet, char *discover_path, char *filename);
-int write_into_file(char *subnet, char *path, char *hwlocpath);
+static int read_routes(char *subnet, char *path, char *route_filename);
+static int read_discover(char *subnet, char *discover_path,
+                         char *filename, node_t **nodes);
+static int
+write_into_file(char *subnet, char *path, char *hwlocpath,
+                node_t *nodes, UT_array *partitions);
 
 static void get_match(char *line, int nmatch, regmatch_t pmatch[], char *matches[])
 {
@@ -169,7 +170,7 @@ static float compute_gbits(char *speed, char *width)
     return x*gb_per_x;
 }
 
-int build_paths(void)
+int build_paths(node_t *nodes)
 {
     node_t *node_src, *node_dest, *node_tmp1, *node_tmp2;
     HASH_ITER(hh, nodes, node_src, node_tmp1) {
@@ -283,15 +284,15 @@ static char *node_find_partition_name(node_t *node)
 }
 
 
-static int netloc_network_explicit_find_partitions(void)
+static int netloc_network_explicit_find_partitions(node_t *nodes, UT_array *partitions)
 {
-    int ret = 0;
+    int ret = NETLOC_SUCCESS;;
     int num_nodes;
-    char **partition_names;
+    partition_t **partition_names;
     node_t **hosts;
 
     num_nodes = HASH_COUNT(nodes);
-    partition_names = (char **)malloc(sizeof(char *[num_nodes]));
+    partition_names = (partition_t **)malloc(sizeof(partition_t *[num_nodes]));
     hosts = (node_t **)malloc(sizeof(node_t *[num_nodes]));
 
     /* Save all the partition names */
@@ -300,7 +301,10 @@ static int netloc_network_explicit_find_partitions(void)
     HASH_ITER(hh, nodes, node, node_tmp) {
         if (node->type != NETLOC_NODE_TYPE_HOST)
             continue;
-        partition_names[n] = node_find_partition_name(node);
+        partition_names[n] = (partition_t *) malloc(sizeof(partition_t));
+        partition_names[n]->name = node_find_partition_name(node);
+        utarray_new(partition_names[n]->nodes, &ut_ptr_icd);
+        utarray_push_back(partition_names[n]->nodes, &node);
         hosts[n] = node;
         n++;
     }
@@ -321,7 +325,11 @@ static int netloc_network_explicit_find_partitions(void)
             if (!partition_names[n2])
                 continue;
 
-            if (!strcmp(partition_names[n1], partition_names[n2])) {
+            if (!strcmp(partition_names[n1]->name, partition_names[n2]->name)) {
+                utarray_concat(partition_names[n1]->nodes,
+                               partition_names[n2]->nodes);
+                free(partition_names[n2]->name);
+                utarray_free(partition_names[n2]->nodes);
                 free(partition_names[n2]);
                 partition_names[n2] = NULL;
                 hosts[n2]->main_partition = num_partitions;
@@ -331,10 +339,9 @@ static int netloc_network_explicit_find_partitions(void)
     }
 
     printf("%d partitions found\n", num_partitions);
-    utarray_new(partitions, &ut_ptr_icd);
     utarray_reserve(partitions, num_partitions);
     for (int p = 0; p < num_partitions; p++) {
-        printf("\t'%s'\n", partition_names[p]);
+        printf("\t'%s'\n", partition_names[p]->name);
         utarray_push_back(partitions, partition_names+p);
     }
     free(partition_names);
@@ -343,10 +350,10 @@ static int netloc_network_explicit_find_partitions(void)
     return ret;
 }
 
-static int netloc_network_explicit_set_partitions(void)
+static int netloc_network_explicit_set_partitions(node_t *nodes, UT_array *partitions)
 {
     /* Find the main partition for each node */
-    netloc_network_explicit_find_partitions();
+    netloc_network_explicit_find_partitions(nodes, partitions);
 
     node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
@@ -414,6 +421,8 @@ int main(int argc, char **argv)
     DIR *indir, *outdir;
     char *prog_name = basename(argv[0]);
     char *inpath = NULL, *outpath = NULL, *hwlocpath = NULL;
+    node_t *nodes = NULL;
+    UT_array partitions;
 
     if (argc != 2 && argc != 3 && argc != 5) {
         goto error_param;
@@ -495,6 +504,7 @@ int main(int argc, char **argv)
     struct dirent *entry;
     while ((entry = readdir(indir))) {
         nodes = NULL;
+        utarray_init(&partitions, &ut_ptr_icd);
         int subnet_found;
         char *filename = entry->d_name;
 
@@ -508,7 +518,7 @@ int main(int argc, char **argv)
                 subnet = NULL;
 
             discover_filename = filename;
-            read_discover(subnet, inpath, discover_filename);
+            read_discover(subnet, inpath, discover_filename, &nodes);
 
             if (0 > asprintf(&route_filename, "%s/ibroutes-%s", inpath, subnet))
                 route_filename = NULL;
@@ -535,10 +545,11 @@ int main(int argc, char **argv)
             }
             free(route_filename);
 
-            build_paths();
-            netloc_network_explicit_set_partitions();
+            build_paths(nodes);
+            netloc_network_explicit_set_partitions(nodes, &partitions);
 
-            netloc_write_into_xml_file(nodes, partitions, subnet, outpath,
+            /* Write the XML file */
+            netloc_write_into_xml_file(nodes, &partitions, subnet, outpath,
                                        hwlocpath,
                                        NETLOC_NETWORK_TYPE_INFINIBAND);
 
@@ -577,12 +588,16 @@ int main(int argc, char **argv)
             }
 
             /* Free Partitions */
-            for (char **ppartition = (char **)utarray_front(partitions);
-                    ppartition != NULL;
-                    ppartition = (char **)utarray_next(partitions, ppartition)) {
+            for (partition_t **ppartition =
+                     (partition_t **) utarray_front(&partitions);
+                 ppartition != NULL;
+                 ppartition = (partition_t **)
+                     utarray_next(&partitions, ppartition)) {
+                free((*ppartition)->name);
+                utarray_free((*ppartition)->nodes);
                 free(*ppartition);
             }
-            utarray_free(partitions);
+            utarray_done(&partitions);
 
             /* Free Routes */
             route_source_t *route, *route_tmp;
@@ -626,7 +641,7 @@ error_param:
     return 1;
 }
 
-int read_discover(char *subnet, char *path, char *filename)
+int read_discover(char *subnet, char *path, char *filename, node_t **nodes)
 {
     char *line = NULL;
     size_t size = 0;
@@ -756,10 +771,10 @@ int read_discover(char *subnet, char *path, char *filename)
         if (have_peer) {
             /* Get the source node */
             node_t *src_node =
-                get_node(&nodes, src_type, src_lid, src_guid, subnet, src_desc);
+                get_node(nodes, src_type, src_lid, src_guid, subnet, src_desc);
 
             node_t *dest_node =
-                get_node(&nodes, dest_type, dest_lid, dest_guid, subnet, dest_desc);
+                get_node(nodes, dest_type, dest_lid, dest_guid, subnet, dest_desc);
 
             edge_t *edge;
             HASH_FIND_STR(src_node->edges, dest_node->physical_id, edge);
@@ -838,7 +853,7 @@ int read_discover(char *subnet, char *path, char *filename)
 
     /* Find the link in the other way */
     node_t *node, *node_tmp;
-    HASH_ITER(hh, nodes, node, node_tmp) {
+    HASH_ITER(hh, *nodes, node, node_tmp) {
         if (node->subnodes) {
             node_t*subnode, *subnode_tmp;
             HASH_ITER(hh, node->subnodes, subnode, subnode_tmp) {

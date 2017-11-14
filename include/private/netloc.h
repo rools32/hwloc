@@ -191,7 +191,7 @@ struct netloc_network_explicit_t {
     netloc_network_t parent;
 
     /** Topology path */
-    char *topopath;
+    char *topopath; /* To be removed */
 
     /** Partition List */
     netloc_partition_t *partitions; /* Hash table of partitions by name */

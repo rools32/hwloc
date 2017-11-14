@@ -30,6 +30,9 @@ netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
                       const char *subnet, const char *path,
                       const char *hwlocpath,
                       const netloc_network_type_t transportType);
+extern netloc_network_explicit_t *
+create_netloc_network_explicit(const char *subnet, const char *hwlocpath,
+                               node_t *nodes, const UT_array *partitions);
 
 static int get_virtual_id(char *id)
 {
@@ -414,7 +417,16 @@ int netloc_write_into_xml_file(node_t *nodes, const UT_array *partitions,
     set_reverse_edges(nodes);
     find_similar_nodes(nodes, utarray_len(partitions));
 
-    ret = netloc_write_xml_file(nodes, partitions, subnet, path, hwlocpath, transportType);
+    /* Create a netloc explicit_topology to ease the dump */
+    netloc_network_explicit_t *topo;
+    topo = create_netloc_network_explicit(subnet, hwlocpath,
+                                          nodes, partitions);
+
+    ret = netloc_write_xml_file(nodes, partitions, subnet, path,
+                                hwlocpath, transportType);
+
+    /* Free the network_explicit_t topo */
+    netloc_network_explicit_destruct(topo);
 
     /* Untangle similar nodes so the virtualization is transparent */
     node_t *node, *node_tmp;
@@ -436,7 +448,8 @@ int netloc_write_into_xml_file(node_t *nodes, const UT_array *partitions,
                     utarray_free(reverse_edge->physical_link_idx);
                     /* Unmerge revert subedges */
                     for (i = 0; i < utarray_len(reverse_edge->subedges); ++i) {
-                        edge_t *sub = *(edge_t **) utarray_eltptr(reverse_edge->subedges, i);
+                        edge_t *sub = *(edge_t **)
+                            utarray_eltptr(reverse_edge->subedges, i);
                         HASH_ADD_STR(dest_node->edges, dest, sub);
                     }
                     utarray_free(reverse_edge->subedges);

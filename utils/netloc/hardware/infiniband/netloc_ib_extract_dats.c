@@ -36,12 +36,13 @@ path_source_t *paths = NULL;
 
 static int read_routes(char *subnet, char *path, char *route_filename);
 static int read_discover(char *subnet, char *discover_path,
-                         char *filename, node_t **nodes);
+                         char *filename, utils_node_t **nodes);
 static int
 write_into_file(char *subnet, char *path, char *hwlocpath,
-                node_t *nodes, UT_array *partitions);
+                utils_node_t *nodes, UT_array *partitions);
 
-static void get_match(char *line, int nmatch, regmatch_t pmatch[], char *matches[])
+static void
+get_match(char *line, int nmatch, regmatch_t pmatch[], char *matches[])
 {
     for (int i = 0; i < nmatch; i++) {
         regmatch_t current_match = pmatch[i];
@@ -55,7 +56,7 @@ static void get_match(char *line, int nmatch, regmatch_t pmatch[], char *matches
 /* We suppose the description of nodes is like that: ([^ ]*).*
  * while \1 is the hostname
  */
-static char *node_find_hostname(node_t *node)
+static char *node_find_hostname(utils_node_t *node)
 {
     char *name = node->description;
     int max_size = strlen(name);
@@ -82,10 +83,10 @@ static char *node_find_hostname(node_t *node)
     return hostname;
 }
 
-node_t *get_node(node_t **nodes, char *type, char *lid,
+utils_node_t *get_node(utils_node_t **nodes, char *type, char *lid,
         char *guid, char *subnet, char *desc)
 {
-    node_t *node;
+    utils_node_t *node;
     char *id;
 
     asprintf(&id, "%.4s:%.4s:%.4s:%.4s",
@@ -95,7 +96,7 @@ node_t *get_node(node_t **nodes, char *type, char *lid,
     HASH_FIND_STR(*nodes, id, node);  /* id already in the hash? */
     if (!node) {
         size_t size = sizeof(*node)+sizeof(char)*(strlen(desc)+1);
-        node = (node_t *) malloc(size);
+        node = (utils_node_t *) malloc(size);
         sprintf(node->physical_id, "%s", id);
 
         node->logical_id = atol(lid);
@@ -107,7 +108,7 @@ node_t *get_node(node_t **nodes, char *type, char *lid,
         node->partitions = NULL;
         node->subnodes = NULL;
         
-        utarray_new(node->physical_links, &physical_link_icd);
+        utarray_new(node->physical_links, &utils_physical_link_icd);
 
         HASH_ADD_STR(*nodes, physical_id, node);  /* guid: name of key field */
     }
@@ -116,12 +117,13 @@ node_t *get_node(node_t **nodes, char *type, char *lid,
     return node;
 }
 
-static physical_link_t *find_other_physical_link(physical_link_t *link)
+static utils_physical_link_t *
+find_other_physical_link(utils_physical_link_t *link)
 {
-    node_t *dest = link->dest;
+    utils_node_t *dest = link->dest;
     unsigned int dest_port = link->ports[1];
 
-    physical_link_t *other_link = (physical_link_t *)
+    utils_physical_link_t *other_link = (utils_physical_link_t *)
         utarray_eltptr(dest->physical_links, dest_port-1);
 
     return other_link;
@@ -170,9 +172,9 @@ static float compute_gbits(char *speed, char *width)
     return x*gb_per_x;
 }
 
-int build_paths(node_t *nodes)
+int build_paths(utils_node_t *nodes)
 {
-    node_t *node_src, *node_dest, *node_tmp1, *node_tmp2;
+    utils_node_t *node_src, *node_dest, *node_tmp1, *node_tmp2;
     HASH_ITER(hh, nodes, node_src, node_tmp1) {
         if (node_src->type != NETLOC_NODE_TYPE_HOST)
             continue;
@@ -204,12 +206,13 @@ int build_paths(node_t *nodes)
             char *id_dest = node_dest->physical_id;
 
             /* Don't assert node_src->physical_link[0] is set */
-            unsigned int link_id  = *(int *) utarray_front(node_src->edges->physical_link_idx);
-            physical_link_t *link = (physical_link_t  *)
+            unsigned int link_id = *(int *)
+                utarray_front(node_src->edges->physical_link_idx);
+            utils_physical_link_t *link = (utils_physical_link_t  *)
                 utarray_eltptr(node_src->physical_links, link_id);
             utarray_push_back(found_links, &link);
 
-            node_t *node_cur = link->dest;
+            utils_node_t *node_cur = link->dest;
             assert(node_cur);
             while (node_cur != node_dest) {
                 route_source_t *route_source;
@@ -227,7 +230,7 @@ int build_paths(node_t *nodes)
                 }
 
                 unsigned int port = route_dest->port;
-                link = (physical_link_t *)
+                link = (utils_physical_link_t *)
                     utarray_eltptr(node_cur->physical_links, port-1);
                 utarray_push_back(found_links, &link);
                 node_cur = link->dest;
@@ -252,7 +255,7 @@ int build_paths(node_t *nodes)
 /* We suppose the hostname of nodes is like that: ([a-z][-a-z]+[a-z]).*
  * while \1 is the name of the partition
  */
-static char *node_find_partition_name(node_t *node)
+static char *node_find_partition_name(utils_node_t *node)
 {
     char *name;
     int max_size;
@@ -284,24 +287,28 @@ static char *node_find_partition_name(node_t *node)
 }
 
 
-static int netloc_network_explicit_find_partitions(node_t *nodes, UT_array *partitions)
+static int
+netloc_network_explicit_find_partitions(utils_node_t *nodes,
+                                        UT_array *partitions)
 {
     int ret = NETLOC_SUCCESS;;
     int num_nodes;
-    partition_t **partition_names;
-    node_t **hosts;
+    utils_partition_t **partition_names;
+    utils_node_t **hosts;
 
     num_nodes = HASH_COUNT(nodes);
-    partition_names = (partition_t **)malloc(sizeof(partition_t *[num_nodes]));
-    hosts = (node_t **)malloc(sizeof(node_t *[num_nodes]));
+    partition_names = (utils_partition_t **)
+        malloc(sizeof(utils_partition_t *[num_nodes]));
+    hosts = (utils_node_t **)malloc(sizeof(utils_node_t *[num_nodes]));
 
     /* Save all the partition names */
     int n = 0;
-    node_t *node, *node_tmp;
+    utils_node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
         if (node->type != NETLOC_NODE_TYPE_HOST)
             continue;
-        partition_names[n] = (partition_t *) malloc(sizeof(partition_t));
+        partition_names[n] = (utils_partition_t *)
+            malloc(sizeof(utils_partition_t));
         partition_names[n]->name = node_find_partition_name(node);
         utarray_new(partition_names[n]->nodes, &ut_ptr_icd);
         utarray_push_back(partition_names[n]->nodes, &node);
@@ -350,19 +357,21 @@ static int netloc_network_explicit_find_partitions(node_t *nodes, UT_array *part
     return ret;
 }
 
-static int netloc_network_explicit_set_partitions(node_t *nodes, UT_array *partitions)
+static int
+netloc_network_explicit_set_partitions(utils_node_t *nodes,
+                                       UT_array *partitions)
 {
     /* Find the main partition for each node */
     netloc_network_explicit_find_partitions(nodes, partitions);
 
-    node_t *node, *node_tmp;
+    utils_node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
         node->partitions = (int *)
             calloc(utarray_len(partitions), sizeof(int));
         if (node->main_partition != -1)
             node->partitions[node->main_partition] = 1;
 
-        edge_t *edge, *edge_tmp;
+        utils_edge_t *edge, *edge_tmp;
         HASH_ITER(hh, node->edges, edge, edge_tmp) {
             edge->partitions = (int *)
                 calloc(utarray_len(partitions), sizeof(int));
@@ -373,16 +382,16 @@ static int netloc_network_explicit_set_partitions(node_t *nodes, UT_array *parti
      * path between two nodes of a partition */
     path_source_t *path_src, *path_src_tmp;
     HASH_ITER(hh, paths, path_src, path_src_tmp) {
-        node_t *node_src = path_src->node;
+        utils_node_t *node_src = path_src->node;
         int partition = node_src->main_partition;
         path_dest_t *path_dest, *path_dest_tmp;
         HASH_ITER(hh, path_src->dest, path_dest, path_dest_tmp) {
-            node_t *node_dest = path_dest->node;
+            utils_node_t *node_dest = path_dest->node;
             if (node_dest->main_partition != partition)
                 continue;
 
             for (unsigned int l = 0; l < utarray_len(path_dest->links); l++) {
-                physical_link_t *link = *(physical_link_t **)
+                utils_physical_link_t *link = *(utils_physical_link_t **)
                     utarray_eltptr(path_dest->links, l);
                 if (!link->partitions) {
                     link->partitions = (int *)
@@ -421,7 +430,7 @@ int main(int argc, char **argv)
     DIR *indir, *outdir;
     char *prog_name = basename(argv[0]);
     char *inpath = NULL, *outpath = NULL, *hwlocpath = NULL;
-    node_t *nodes = NULL;
+    utils_node_t *nodes = NULL;
     UT_array partitions;
 
     if (argc != 2 && argc != 3 && argc != 5) {
@@ -554,7 +563,7 @@ int main(int argc, char **argv)
                                        NETLOC_NETWORK_TYPE_INFINIBAND);
 
             /* Free node hash table */
-            node_t *node, *node_tmp;
+            utils_node_t *node, *node_tmp;
             HASH_ITER(hh, nodes, node, node_tmp) {
                 HASH_DEL(nodes, node);
 
@@ -562,7 +571,7 @@ int main(int argc, char **argv)
                 free(node->description);
 
                 /* Edges */
-                edge_t *edge, *edge_tmp;
+                utils_edge_t *edge, *edge_tmp;
                 HASH_ITER(hh, node->edges, edge, edge_tmp) {
                     HASH_DEL(node->edges, edge);
                     utarray_free(edge->physical_link_idx);
@@ -574,8 +583,8 @@ int main(int argc, char **argv)
                 free(node->partitions);
 
                 /* Physical links */
-                for (unsigned int l = 0; l < utarray_len(node->physical_links); l++) {
-                    physical_link_t *link = (physical_link_t *)
+                for (unsigned l=0; l < utarray_len(node->physical_links); l++) {
+                    utils_physical_link_t *link = (utils_physical_link_t *)
                         utarray_eltptr(node->physical_links, l);
                     free(link->width);
                     free(link->speed);
@@ -588,10 +597,10 @@ int main(int argc, char **argv)
             }
 
             /* Free Partitions */
-            for (partition_t **ppartition =
-                     (partition_t **) utarray_front(&partitions);
+            for (utils_partition_t **ppartition =
+                     (utils_partition_t **) utarray_front(&partitions);
                  ppartition != NULL;
-                 ppartition = (partition_t **)
+                 ppartition = (utils_partition_t **)
                      utarray_next(&partitions, ppartition)) {
                 free((*ppartition)->name);
                 utarray_free((*ppartition)->nodes);
@@ -641,7 +650,8 @@ error_param:
     return 1;
 }
 
-int read_discover(char *subnet, char *path, char *filename, node_t **nodes)
+int
+read_discover(char *subnet, char *path, char *filename, utils_node_t **nodes)
 {
     char *line = NULL;
     size_t size = 0;
@@ -770,17 +780,17 @@ int read_discover(char *subnet, char *path, char *filename, node_t **nodes)
         /* Add the link to the edge list */
         if (have_peer) {
             /* Get the source node */
-            node_t *src_node =
+            utils_node_t *src_node =
                 get_node(nodes, src_type, src_lid, src_guid, subnet, src_desc);
 
-            node_t *dest_node =
+            utils_node_t *dest_node =
                 get_node(nodes, dest_type, dest_lid, dest_guid, subnet, dest_desc);
 
-            edge_t *edge;
+            utils_edge_t *edge;
             HASH_FIND_STR(src_node->edges, dest_node->physical_id, edge);
             /* Creation of the edge */
             if (!edge) {
-                edge = (edge_t *) malloc(sizeof(edge_t));
+                edge = (utils_edge_t *) malloc(sizeof(utils_edge_t));
                 strcpy(edge->dest, dest_node->physical_id);
                 edge->total_gbits = 0;
                 edge->partitions =  NULL;
@@ -791,7 +801,7 @@ int read_discover(char *subnet, char *path, char *filename, node_t **nodes)
             }
 
             /* Creation of the physical link */
-            physical_link_t link[1];
+            utils_physical_link_t link[1];
             link->int_id = global_link_idx++;
             link->ports[0] =  atoi(src_port_id);
             link->ports[1] =  atoi(dest_port_id);
@@ -811,9 +821,9 @@ int read_discover(char *subnet, char *path, char *filename, node_t **nodes)
             if (port_idx+1 > utarray_len(src_node->physical_links)) {
                 utarray_insert(src_node->physical_links, link, port_idx);
             } else {
-                physical_link_t *dest_link = (physical_link_t *)
+                utils_physical_link_t *dest_link = (utils_physical_link_t *)
                     utarray_eltptr(src_node->physical_links, port_idx);
-                memcpy(dest_link, link, sizeof(physical_link_t));
+                memcpy(dest_link, link, sizeof(utils_physical_link_t));
             }
 
             utarray_push_back(edge->physical_link_idx, &port_idx);
@@ -852,14 +862,14 @@ int read_discover(char *subnet, char *path, char *filename, node_t **nodes)
 
 
     /* Find the link in the other way */
-    node_t *node, *node_tmp;
+    utils_node_t *node, *node_tmp;
     HASH_ITER(hh, *nodes, node, node_tmp) {
         if (node->subnodes) {
-            node_t*subnode, *subnode_tmp;
+            utils_node_t*subnode, *subnode_tmp;
             HASH_ITER(hh, node->subnodes, subnode, subnode_tmp) {
                 unsigned int num_links = utarray_len(subnode->physical_links);
                 for (unsigned int i = 0; i < num_links; i++) {
-                    physical_link_t *link = (physical_link_t *)
+                    utils_physical_link_t *link = (utils_physical_link_t *)
                         utarray_eltptr(subnode->physical_links, i);
                     if (!link->dest)
                         continue;
@@ -869,7 +879,7 @@ int read_discover(char *subnet, char *path, char *filename, node_t **nodes)
         } else {
             unsigned int num_links = utarray_len(node->physical_links);
             for (unsigned int i = 0; i < num_links; i++) {
-                physical_link_t *link = (physical_link_t *)
+                utils_physical_link_t *link = (utils_physical_link_t *)
                     utarray_eltptr(node->physical_links, i);
                 if (!link->dest)
                     continue;

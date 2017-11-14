@@ -19,14 +19,14 @@
 
 #define MAX_STR 20
 
-struct partition_t;
-typedef struct partition_t partition_t;
-struct node_t;
-typedef struct node_t node_t;
-struct edge_t;
-typedef struct edge_t edge_t;
-struct physical_link_t;
-typedef struct physical_link_t physical_link_t;
+struct utils_partition_t;
+typedef struct utils_partition_t utils_partition_t;
+struct utils_node_t;
+typedef struct utils_node_t utils_node_t;
+struct utils_edge_t;
+typedef struct utils_edge_t utils_edge_t;
+struct utils_physical_link_t;
+typedef struct utils_physical_link_t utils_physical_link_t;
 
 /******************************************************************************/
 /* New abstract datatype for netloc */
@@ -44,50 +44,51 @@ struct netloc_new_partition_t {
 
 /******************************************************************************/
 
-struct edge_t {
+struct utils_edge_t {
     UT_hash_handle hh;         /* makes this structure hashable */
     char dest[MAX_STR];        /* key */
     float total_gbits;
     UT_array *physical_link_idx;
     int *partitions;
-    edge_t *reverse_edge;
+    utils_edge_t *reverse_edge;
     UT_array *subedges; /* Hash table of subedges */
 };
 
-struct node_t {
+struct utils_node_t {
     UT_hash_handle hh;         /* makes this structure hashable */
     char physical_id[MAX_STR]; /* key */
     long logical_id;
     netloc_node_type_t type;
     char *description;
-    edge_t *edges;
+    utils_edge_t *edges;
     int main_partition;
     char *hostname;
     int *partitions;
     UT_array *physical_links;
-    node_t *subnodes; /* Hash table of subnodes */
+    utils_node_t *subnodes; /* Hash table of subnodes */
 };
 
-struct partition_t {
+struct utils_partition_t {
     char *name;
     UT_array *nodes;
 };
 
-struct physical_link_t {
+struct utils_physical_link_t {
     unsigned long long int int_id;
     int ports[2];
-    node_t *dest;
+    utils_node_t *dest;
     char *width;
     char *speed;
     float gbits;
     char *description;
     int *partitions;
-    physical_link_t *other_link;
-    edge_t *parent_edge;
-    node_t *parent_node;
+    utils_physical_link_t *other_link;
+    utils_edge_t *parent_edge;
+    utils_node_t *parent_node;
 };
 
-static UT_icd physical_link_icd = { sizeof(physical_link_t), NULL, NULL, NULL };
+static UT_icd utils_physical_link_icd =
+    { sizeof(utils_physical_link_t), NULL, NULL, NULL };
 
 /* Route tables */
 typedef struct {
@@ -106,29 +107,29 @@ extern route_source_t *routes;
 typedef struct {
     UT_hash_handle hh;         /* makes this structure hashable */
     char physical_id[MAX_STR]; /* key */
-    node_t *node;
+    utils_node_t *node;
     UT_array *links;
 } path_dest_t;
 typedef struct {
     UT_hash_handle hh;         /* makes this structure hashable */
     char physical_id[MAX_STR]; /* key */
-    node_t *node;
+    utils_node_t *node;
     path_dest_t *dest;
 } path_source_t;
 extern path_source_t *paths;
 
-static inline int node_is_virtual(const node_t *node)
+static inline int node_is_virtual(const utils_node_t *node)
 {
     return (NULL != node->subnodes);
 }
 
-static inline int edge_is_virtual(const edge_t *edge)
+static inline int edge_is_virtual(const utils_edge_t *edge)
 {
     return (NULL != edge->subedges);
 }
 
 extern int
-netloc_write_into_xml_file(node_t *nodes, const UT_array *partitions,
+netloc_write_into_xml_file(utils_node_t *nodes, const UT_array *partitions,
                            const char *subnet, const char *path,
                            const char *hwlocpath,
                            const netloc_network_type_t transportType);

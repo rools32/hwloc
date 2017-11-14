@@ -24,7 +24,7 @@
 #include <netloc/uthash.h>
 #include <netloc/utarray.h>
 
-static void create_node(const node_t *node, netloc_node_t *topo_node,
+static void create_node(const utils_node_t *node, netloc_node_t *topo_node,
                         netloc_network_explicit_t *topology,
                         netloc_partition_t *extra_part)
 {
@@ -53,7 +53,7 @@ static void create_node(const node_t *node, netloc_node_t *topo_node,
     unsigned int nsubnodes = HASH_COUNT(node->subnodes);
     if (nsubnodes) {
         unsigned int i = 0;
-        node_t *subnode, *subnode_tmp;
+        utils_node_t *subnode, *subnode_tmp;
         topo_node->nsubnodes = nsubnodes;
         topo_node->subnodes =
             (netloc_node_t **) malloc(sizeof(netloc_node_t *[nsubnodes]));
@@ -81,7 +81,7 @@ static void create_node(const node_t *node, netloc_node_t *topo_node,
 }
 
 static netloc_edge_t *
-create_edges(const edge_t *edge, netloc_network_explicit_t *topology,
+create_edges(const utils_edge_t *edge, netloc_network_explicit_t *topology,
              netloc_partition_t *extra_part)
 {
     netloc_edge_t *topo_edge = netloc_edge_construct();
@@ -110,7 +110,8 @@ create_edges(const edge_t *edge, netloc_network_explicit_t *topology,
             (netloc_edge_t **) malloc(sizeof(netloc_edge_t *[nsubedges]));
         assert(topo_edge->subnode_edges);
         for (unsigned int i = 0; i < utarray_len(edge->subedges); ++i) {
-            edge_t *subedge = *(edge_t **) utarray_eltptr(edge->subedges, i);
+            utils_edge_t *subedge =
+                *(utils_edge_t **) utarray_eltptr(edge->subedges, i);
             netloc_edge_t *topo_subedge =
                 create_edges(subedge, topology, extra_part);
             assert(topo_subedge);
@@ -134,7 +135,7 @@ create_edges(const edge_t *edge, netloc_network_explicit_t *topology,
 }
 
 static inline netloc_physical_link_t *
-create_physical_link(const physical_link_t *link,
+create_physical_link(const utils_physical_link_t *link,
                      netloc_network_explicit_t *topology)
 {
     netloc_physical_link_t *topo_link = netloc_physical_link_construct();
@@ -177,7 +178,7 @@ create_physical_link(const physical_link_t *link,
 
 netloc_network_explicit_t *
 create_netloc_network_explicit(const char *subnet, const char *hwlocpath,
-                               node_t *nodes, const UT_array *partitions)
+                               utils_node_t *nodes, const UT_array *partitions)
 {
     unsigned int npartitions = utarray_len(partitions);
     netloc_network_explicit_t *topology = netloc_network_explicit_construct();
@@ -190,34 +191,35 @@ create_netloc_network_explicit(const char *subnet, const char *hwlocpath,
     /* Create partitions */
     netloc_partition_t *extra_part, *topo_partition;
     for (unsigned p = 0; p < npartitions; ++p) {
-        partition_t *partition = *(partition_t **)utarray_eltptr(partitions, p);
+        utils_partition_t *partition =
+            *(utils_partition_t **) utarray_eltptr(partitions, p);
         topo_partition = netloc_partition_construct(p, partition->name);
         HASH_ADD_STR(topology->partitions, name, topo_partition);
     }
     extra_part = netloc_partition_construct(npartitions, "/extra+structural/");
     /* Add nodes */
-    node_t *node, *node_tmp;
+    utils_node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
         netloc_node_t *topo_node = netloc_node_construct();
         create_node(node, topo_node, topology, extra_part);
     }
     /* Add edges */
     HASH_ITER(hh, nodes, node, node_tmp) {
-        edge_t *edge, *edge_tmp;
+        utils_edge_t *edge, *edge_tmp;
         HASH_ITER(hh, node->edges, edge, edge_tmp) {
             create_edges(edge, topology, extra_part);
         }
     }
     /* Add physical links */
     HASH_ITER(hh, nodes, node, node_tmp) {
-        edge_t *edge, *edge_tmp;
+        utils_edge_t *edge, *edge_tmp;
         HASH_ITER(hh, node->edges, edge, edge_tmp) {
             if (edge_is_virtual(edge))
                 continue;
             for (unsigned i = 0; i<utarray_len(edge->physical_link_idx); ++i) {
                 unsigned int id = *(unsigned int *)
                     utarray_eltptr(edge->physical_link_idx, i);
-                physical_link_t *link = (physical_link_t *)
+                utils_physical_link_t *link = (utils_physical_link_t *)
                     utarray_eltptr(node->physical_links, id);
                 create_physical_link(link, topology);
             }

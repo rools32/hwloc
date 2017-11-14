@@ -27,21 +27,23 @@
 #include <netloc/utarray.h>
 
 static int
-node_belongs_to_a_partition(const node_t *node, const unsigned int nparts) {
+node_belongs_to_a_partition(const utils_node_t *node, const unsigned int nparts)
+{
     for(unsigned int p = 0; node->partitions && p < nparts; ++p)
         if (node->partitions[p]) return 1;
     return 0;
 }
 
 static int
-edge_belongs_to_a_partition(const edge_t *edge, const unsigned int nparts) {
+edge_belongs_to_a_partition(const utils_edge_t *edge, const unsigned int nparts)
+{
     for(unsigned int p = 0; edge->partitions && p < nparts; ++p)
         if (edge->partitions[p]) return 1;
     return 0;
 }
 
 static inline void insert_xml_link(xml_node_ptr links_node,
-                                   physical_link_t *link)
+                                   utils_physical_link_t *link)
 {
     xml_char *buff = NULL;
     char *strBuff = NULL;
@@ -92,8 +94,8 @@ static inline void insert_xml_link(xml_node_ptr links_node,
     strBuff = NULL;
 }
 
-static inline void insert_xml_edge(xml_node_ptr con_node, edge_t *edge,
-                                   node_t *node, node_t *nodes)
+static inline void insert_xml_edge(xml_node_ptr con_node, utils_edge_t *edge,
+                                   utils_node_t *node, utils_node_t *nodes)
 {
     xml_char *buff = NULL;
     char *strBuff = NULL;
@@ -139,9 +141,10 @@ static inline void insert_xml_edge(xml_node_ptr con_node, edge_t *edge,
         }
         strBuff = NULL;
         /* Insert subedges */
-        node_t *real_node = NULL;
+        utils_node_t *real_node = NULL;
         for (unsigned int se = 0; se < num_subedges; ++se) {
-            edge_t *subedge = *(edge_t **)utarray_eltptr(edge->subedges, se);
+            utils_edge_t *subedge = *(utils_edge_t **)
+                utarray_eltptr(edge->subedges, se);
             if (node_is_virtual(node))
                 HASH_FIND_STR(node->subnodes, subedge->reverse_edge->dest,
                               real_node);
@@ -158,14 +161,14 @@ static inline void insert_xml_edge(xml_node_ptr con_node, edge_t *edge,
         for (unsigned int l = 0; l < num_links; l++) {
             unsigned int link_idx = *(unsigned int *)
                 utarray_eltptr(edge->physical_link_idx, l);
-            physical_link_t *link = (physical_link_t *)
+            utils_physical_link_t *link = (utils_physical_link_t *)
                 utarray_eltptr(node->physical_links, link_idx);
             insert_xml_link(links_node, link);
         }
     }
 }
 
-static inline void insert_xml_node(xml_node_ptr crt_node, node_t *node,
+static inline void insert_xml_node(xml_node_ptr crt_node, utils_node_t *node,
                                    char *hwloc_path)
 {
     xml_char *buff = NULL;
@@ -218,8 +221,9 @@ static inline void insert_xml_node(xml_node_ptr crt_node, node_t *node,
     }
 }
 
-static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
-                               const unsigned int len_partitions, node_t *nodes)
+static inline int
+insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
+             const unsigned int len_partitions, utils_node_t *nodes)
 {
     char *strBuff;
     unsigned int part_size = 0, strBuffSize;
@@ -236,7 +240,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
     xml_node_attr_add(part_node, BAD_CAST "name",
                       BAD_CAST "/extra+structural/");
     /* Add nodes */
-    node_t *node, *node_tmp;
+    utils_node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
         /* Check if node belongs to no partition */
         if (!node_belongs_to_a_partition(node, len_partitions)) {
@@ -246,7 +250,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
             insert_xml_node(crt_node, node, full_hwloc_path);
             if (node->subnodes) {
                 /* VIRTUAL NODE */
-                node_t *subnode, *subnode_tmp;
+                utils_node_t *subnode, *subnode_tmp;
                 /* Set virtual */
                 xml_node_attr_add(crt_node, BAD_CAST "virtual", BAD_CAST "yes");
                 /* Set size */
@@ -270,7 +274,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
             }
         }
         /* Add links and connexions */
-        edge_t *edge, *edge_tmp;
+        utils_edge_t *edge, *edge_tmp;
         HASH_ITER(hh, node->edges, edge, edge_tmp) {
             /* Check if edge belongs to no partition */
             if (edge_belongs_to_a_partition(edge, len_partitions))
@@ -297,7 +301,7 @@ static inline int insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
     return NETLOC_SUCCESS;
 }
 
-int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
+int netloc_write_xml_file(utils_node_t *nodes, const UT_array *partitions,
                           const char *subnet, const char *path,
                           const char *hwlocpath,
                           const netloc_network_type_t transportType)
@@ -354,7 +358,8 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
     }
     /* Add partitions */
     int npartitions = utarray_len(partitions);
-    partition_t **ppartition = (partition_t **)utarray_front(partitions);
+    utils_partition_t **ppartition = (utils_partition_t **)
+        utarray_front(partitions);
     for (int p = 0; p < npartitions; ++p) {
         unsigned int part_size = 0;
         xml_node_ptr part_node = NULL, crt_node = NULL, nodes_node = NULL,
@@ -374,7 +379,7 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
                                         BAD_CAST "nodes", NULL);
         cons_node = xml_node_child_new(explicit_node, NULL,
                                        BAD_CAST "connexions", NULL);
-        node_t *node, *node_tmp;
+        utils_node_t *node, *node_tmp;
         HASH_ITER(hh, nodes, node, node_tmp) {
             /* Check node belongs to the current partition */
             if (!node->partitions || !node->partitions[p])
@@ -386,7 +391,7 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
             insert_xml_node(crt_node, node, full_hwloc_path);
             if (node->subnodes) {
                 /* VIRTUAL NODE */
-                node_t *subnode, *subnode_tmp;
+                utils_node_t *subnode, *subnode_tmp;
                 /* Set virtual */
                 xml_node_attr_add(crt_node, BAD_CAST "virtual", BAD_CAST "yes");
                 /* Set size */
@@ -409,7 +414,7 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
                 }
             }
             /* Add links and connexions */
-            edge_t *edge, *edge_tmp;
+            utils_edge_t *edge, *edge_tmp;
             HASH_ITER(hh, node->edges, edge, edge_tmp) {
                 /* Check edge belongs to this partition */
                 if(!edge->partitions || !edge->partitions[p])
@@ -427,7 +432,7 @@ int netloc_write_xml_file(node_t *nodes, const UT_array *partitions,
         }
         strBuff = NULL;
         /* Get next partition */
-        ppartition = (partition_t **)utarray_next(partitions, ppartition);
+        ppartition = (utils_partition_t **)utarray_next(partitions, ppartition);
     }
     /*
      * Add structural/extra edges

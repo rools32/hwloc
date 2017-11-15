@@ -24,10 +24,10 @@
 #include <netloc/uthash.h>
 #include <netloc/utarray.h>
 
-static void create_node(const utils_node_t *node, netloc_node_t *topo_node,
-                        netloc_network_explicit_t *topology,
-                        netloc_partition_t *extra_part)
+static netloc_node_t *
+create_node(const utils_node_t *node, netloc_network_explicit_t *topology)
 {
+    netloc_node_t *topo_node = netloc_node_construct();
     assert(topo_node);
     /* Copy attributes */
     topo_node->type = node->type;
@@ -58,31 +58,17 @@ static void create_node(const utils_node_t *node, netloc_node_t *topo_node,
         topo_node->subnodes =
             (netloc_node_t **) malloc(sizeof(netloc_node_t *[nsubnodes]));
         HASH_ITER(hh, node->subnodes, subnode, subnode_tmp) {
-            netloc_node_t *topo_subnode = netloc_node_construct();
-            create_node(subnode, topo_subnode, topology, extra_part);
+            netloc_node_t *topo_subnode = create_node(subnode, topology);
             topo_subnode->virtual_node = topo_node;
             topo_node->subnodes[i] = topo_subnode;
             ++i;
         }
     }
-    /* Add partition */
-    netloc_partition_t *topo_part, *topo_part_tmp;
-    HASH_ITER(hh, topology->partitions, topo_part, topo_part_tmp) {
-        if (node->partitions[topo_part->id]) {
-            utarray_push_back(topo_part->nodes, &topo_node);
-            utarray_push_back(topo_node->partitions, &topo_part);
-        }
-    }
-    if (!utarray_len(topo_node->partitions)) {
-        /* Add to /extra+structural/ if needed */
-        utarray_push_back(extra_part->nodes, &topo_node);
-        utarray_push_back(topo_node->partitions, &extra_part);
-    }
+    return topo_node;
 }
 
 static netloc_edge_t *
-create_edges(const utils_edge_t *edge, netloc_network_explicit_t *topology,
-             netloc_partition_t *extra_part)
+create_edges(const utils_edge_t *edge, netloc_network_explicit_t *topology)
 {
     netloc_edge_t *topo_edge = netloc_edge_construct();
     if (!topo_edge)
@@ -113,23 +99,10 @@ create_edges(const utils_edge_t *edge, netloc_network_explicit_t *topology,
             utils_edge_t *subedge =
                 *(utils_edge_t **) utarray_eltptr(edge->subedges, i);
             netloc_edge_t *topo_subedge =
-                create_edges(subedge, topology, extra_part);
+                create_edges(subedge, topology);
             assert(topo_subedge);
             topo_edge->subnode_edges[i] = topo_subedge;
         }
-    }
-    /* Add partition */
-    netloc_partition_t *topo_part, *topo_part_tmp;
-    HASH_ITER(hh, topology->partitions, topo_part, topo_part_tmp) {
-        if (edge->partitions[topo_part->id]) {
-            utarray_push_back(topo_part->edges, &topo_edge);
-            utarray_push_back(topo_edge->partitions, &topo_part);
-        }
-    }
-    if (!utarray_len(topo_edge->partitions)) {
-        /* Add to /extra+structural/ if needed */
-        utarray_push_back(extra_part->edges, &topo_edge);
-        utarray_push_back(topo_edge->partitions, &extra_part);
     }
     return topo_edge;
 }
@@ -189,25 +162,39 @@ create_netloc_network_explicit(const char *subnet, const char *hwlocpath,
     topology->hwloc_dir_path = strdup(hwlocpath);
     topology->parent.transport_type = NETLOC_NETWORK_TYPE_INFINIBAND;
     /* Create partitions */
-    netloc_partition_t *extra_part, *topo_partition;
+    netloc_partition_t *topo_partition;
     for (unsigned p = 0; p < npartitions; ++p) {
         utils_partition_t *partition =
             *(utils_partition_t **) utarray_eltptr(partitions, p);
         topo_partition = netloc_partition_construct(p, partition->name);
         HASH_ADD_STR(topology->partitions, name, topo_partition);
     }
-    extra_part = netloc_partition_construct(npartitions, "/extra+structural/");
     /* Add nodes */
     utils_node_t *node, *node_tmp;
     HASH_ITER(hh, nodes, node, node_tmp) {
-        netloc_node_t *topo_node = netloc_node_construct();
-        create_node(node, topo_node, topology, extra_part);
+        netloc_node_t *topo_node = create_node(node, topology);
+        /* Add partition */
+        netloc_partition_t *topo_part, *topo_part_tmp;
+        HASH_ITER(hh, topology->partitions, topo_part, topo_part_tmp) {
+            if (node->partitions[topo_part->id]) {
+                utarray_push_back(topo_part->nodes, &topo_node);
+                utarray_push_back(topo_node->partitions, &topo_part);
+            }
+        }
     }
     /* Add edges */
     HASH_ITER(hh, nodes, node, node_tmp) {
         utils_edge_t *edge, *edge_tmp;
         HASH_ITER(hh, node->edges, edge, edge_tmp) {
-            create_edges(edge, topology, extra_part);
+            netloc_edge_t *topo_edge = create_edges(edge, topology);
+            /* Add partition */
+            netloc_partition_t *topo_part, *topo_part_tmp;
+            HASH_ITER(hh, topology->partitions, topo_part, topo_part_tmp) {
+                if (edge->partitions[topo_part->id]) {
+                    utarray_push_back(topo_part->edges, &topo_edge);
+                    utarray_push_back(topo_edge->partitions, &topo_part);
+                }
+            }
         }
     }
     /* Add physical links */
@@ -235,6 +222,5 @@ create_netloc_network_explicit(const char *subnet, const char *hwlocpath,
                                topo_edge->subnode_edges[i]->physical_links);
         }
     }
-    HASH_ADD_STR(topology->partitions, name, extra_part);
     return topology;
 }

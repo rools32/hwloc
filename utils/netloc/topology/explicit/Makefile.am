@@ -17,4 +17,5 @@ libnetloc_topo_explicit_la_SOURCES = \
 	netloc_topo_utils_to_netloc.c
 
 libnetloc_topo_explicit_la_LIBADD = \
+	$(top_builddir)/netloc/libnetloc.la \
 	$(top_builddir)/utils/netloc/export/xml/libnetloc_xml_export.la

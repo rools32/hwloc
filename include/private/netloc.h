@@ -566,7 +566,6 @@ int netloc_node_is_in_partition(const netloc_node_t *node,
 
 /*************************************************/
 
-
 /**
  * Constructor for netloc_edge_t
  *
@@ -660,6 +659,8 @@ int netloc_path_destruct(netloc_path_t *path);
 netloc_arch_t * netloc_arch_construct(void);
 
 int netloc_arch_destruct(netloc_arch_t *arch);
+
+netloc_arch_node_t *netloc_arch_node_construct(void);
 
 int netloc_arch_build(netloc_arch_t *arch, int add_slots);
 

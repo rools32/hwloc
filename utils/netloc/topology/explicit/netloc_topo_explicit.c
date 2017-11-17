@@ -33,6 +33,9 @@ netloc_write_xml_file(utils_node_t *nodes, const UT_array *partitions,
 extern netloc_network_explicit_t *
 create_netloc_network_explicit(const char *subnet, const char *hwlocpath,
                                utils_node_t *nodes, const UT_array *partitions);
+extern int
+netloc_topo_arch_build(netloc_arch_t *arch, netloc_partition_t *part);
+
 
 static int get_virtual_id(char *id)
 {
@@ -449,12 +452,26 @@ int netloc_write_into_xml_file(utils_node_t *nodes, const UT_array *partitions,
     netloc_network_explicit_t *topo;
     topo = create_netloc_network_explicit(subnet, hwlocpath,
                                           nodes, partitions);
+    netloc_arch_t *arch = netloc_arch_construct();
+    arch->topology = topo;
+    netloc_partition_t *part, *part_tmp;
+    HASH_ITER(hh, topo->partitions, part, part_tmp) {
+        netloc_arch_t *arch = netloc_arch_construct();
+        arch->topology = topo;
+        int ret = netloc_topo_arch_build(arch, part);
+
+        if (NETLOC_SUCCESS == ret)
+            printf("%s is a tree\n",part->name);
+
+        arch->topology = NULL;
+        netloc_arch_destruct(arch);
+    }
 
     ret = netloc_write_xml_file(nodes, partitions, subnet, path,
                                 hwlocpath, transportType);
 
     /* Free the network_explicit_t topo */
-    netloc_network_explicit_destruct(topo);
+    netloc_arch_destruct(arch);
 
     /* Untangle similar nodes so the virtualization is transparent */
     utils_node_t *node, *node_tmp;

@@ -18,4 +18,5 @@ libnetloc_topo_explicit_la_SOURCES = \
 
 libnetloc_topo_explicit_la_LIBADD = \
 	$(top_builddir)/netloc/libnetloc.la \
+	$(top_builddir)/utils/netloc/topology/tree/libnetloc_topo_tree.la \
 	$(top_builddir)/utils/netloc/export/xml/libnetloc_xml_export.la

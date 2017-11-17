@@ -25,7 +25,6 @@ static netloc_arch_tree_t *tree_merge(netloc_arch_tree_t *main,
         netloc_arch_tree_t *sub);
 static int netloc_arch_tree_destruct(netloc_arch_tree_t *tree);
 static int netloc_arch_node_destruct(netloc_arch_node_t *arch_node);
-static netloc_arch_node_t *netloc_arch_node_construct(void);
 
 #define checked_fscanf(f, w, str, failed) \
     if (fscanf(f, " %1023s", w) != 1) { \
@@ -539,22 +538,21 @@ partition_topology_to_tleaf(netloc_partition_t *partition, int num_cores,
 
     /* we build nodes from host list in the given partition
      * and we init all the analysis data */
-    void *userdata;
     netloc_analysis_data *analysis_data;
     netloc_edge_t *edge, *edge_tmp;
     netloc_partition_iter_nodes(partition, pnode) {
-        userdata = (*pnode)->userdata;
-        (*pnode)->userdata = (void *)malloc(sizeof(netloc_analysis_data));
-        analysis_data = (netloc_analysis_data *)(*pnode)->userdata;
+        analysis_data = (netloc_analysis_data *)
+            malloc(sizeof(netloc_analysis_data));
         analysis_data->level = -1;
-        analysis_data->userdata = userdata; 
+        analysis_data->userdata = (*pnode)->userdata;
+        (*pnode)->userdata = analysis_data;
 
         netloc_node_iter_edges((*pnode), edge, edge_tmp) {
-            userdata = edge->userdata;
-            edge->userdata = (void *)malloc(sizeof(netloc_analysis_data));
-            analysis_data = (netloc_analysis_data *)edge->userdata;
+            analysis_data = (netloc_analysis_data *)
+                malloc(sizeof(netloc_analysis_data));
             analysis_data->level = -1;
-            analysis_data->userdata = userdata; 
+            analysis_data->userdata = edge->userdata;
+            edge->userdata = analysis_data;
         }
 
         if (netloc_node_is_host(*pnode)) {
@@ -818,7 +816,8 @@ netloc_arch_t * netloc_arch_construct(void)
 
 int netloc_arch_destruct(netloc_arch_t *arch)
 {
-    netloc_network_explicit_destruct(arch->topology);
+    if (arch->topology)
+        netloc_network_explicit_destruct(arch->topology);
 
     netloc_arch_node_t *node, *node_tmp;
     HASH_ITER(hh, arch->nodes_by_name, node, node_tmp) {
@@ -826,18 +825,22 @@ int netloc_arch_destruct(netloc_arch_t *arch)
         netloc_arch_node_destruct(node);
     }
 
-    free(arch->arch.node_tree->degrees);
-    free(arch->arch.node_tree->cost);
-    free(arch->arch.node_tree);
-    free(arch->current_hosts);
-    free(arch->node_slot_by_idx);
+    if (arch->arch.node_tree) {
+        free(arch->arch.node_tree->degrees);
+        free(arch->arch.node_tree->cost);
+        free(arch->arch.node_tree);
+    }
+    if (arch->current_hosts)
+        free(arch->current_hosts);
+    if (arch->node_slot_by_idx)
+        free(arch->node_slot_by_idx);
 
     free(arch);
 
     return NETLOC_SUCCESS;
 }
 
-static netloc_arch_node_t *netloc_arch_node_construct(void)
+netloc_arch_node_t *netloc_arch_node_construct(void)
 {
     netloc_arch_node_t *arch_node = (netloc_arch_node_t *)
         calloc(1, sizeof(netloc_arch_node_t));

@@ -183,7 +183,7 @@ int netloc_arch_node_get_hwloc_info(netloc_arch_node_t *arch_node,
         malloc(sizeof(netloc_arch_tree_t));
     tree->num_levels = depth-1;
     tree->degrees = max_down_degrees_by_level;
-    tree->cost = cost;
+    tree->costs = cost;
 
     int *arch_idx;
     int num_cores = utarray_len(ordered_host_array);

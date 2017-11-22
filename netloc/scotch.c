@@ -55,7 +55,7 @@ int arch_tree_to_scotch_arch(netloc_arch_tree_t *tree, SCOTCH_Arch *scotch)
 {
     int ret;
 
-    ret = SCOTCH_archTleaf(scotch, tree->num_levels, tree->degrees, tree->cost);
+    ret = SCOTCH_archTleaf(scotch, tree->num_levels, tree->degrees, tree->costs);
     if (ret != 0) {
         fprintf(stderr, "Error: SCOTCH_archTleaf failed\n");
         return NETLOC_ERROR;

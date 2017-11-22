@@ -22,6 +22,8 @@
 #include <netloc/utarray.h>
 #include <private/autogen/config.h>
 
+#include <inttypes.h>
+
 #define NETLOC_QUOTE(numver) # numver
 #define NETLOC_STR_VERS(numver) NETLOC_QUOTE(numver)
 #define NETLOCFILE_VERSION 1
@@ -30,9 +32,9 @@
 #ifdef NETLOC_SCOTCH
 #include <stdint.h>
 #include <scotch.h>
-#define NETLOC_int SCOTCH_Num
+typedef SCOTCH_Num NETLOC_int;
 #else
-#define NETLOC_int int
+typedef int64_t NETLOC_int;
 #endif
 
 /*
@@ -378,7 +380,7 @@ struct netloc_res_t {
 struct netloc_arch_tree_t {
     NETLOC_int num_levels;
     NETLOC_int *degrees;
-    NETLOC_int *cost;
+    NETLOC_int *costs;
 };
 
 struct netloc_arch_node_t {

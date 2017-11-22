@@ -497,7 +497,7 @@ netloc_arch_tree_t *tree_merge(netloc_arch_tree_t *main, netloc_arch_tree_t *sub
     int num_levels = main->num_levels+sub->num_levels;
     new_tree->num_levels = num_levels;
     new_tree->degrees = (NETLOC_int *)malloc(sizeof(NETLOC_int[num_levels]));
-    new_tree->cost = (NETLOC_int *)malloc(sizeof(NETLOC_int[num_levels]));
+    new_tree->costs = (NETLOC_int *)malloc(sizeof(NETLOC_int[num_levels]));
 
     memcpy(new_tree->degrees, main->degrees,
             main->num_levels*sizeof(*new_tree->degrees));
@@ -506,17 +506,17 @@ netloc_arch_tree_t *tree_merge(netloc_arch_tree_t *main, netloc_arch_tree_t *sub
 
     int out_coeff = 10;
     for (int l = 0; l < main->num_levels; l++) {
-        new_tree->cost[l] = main->cost[l]*sub->cost[0]*out_coeff;
+        new_tree->costs[l] = main->costs[l]*sub->costs[0]*out_coeff;
     }
-    memcpy(new_tree->cost+main->num_levels, sub->cost,
-            sub->num_levels*sizeof(*new_tree->cost));
+    memcpy(new_tree->costs+main->num_levels, sub->costs,
+            sub->num_levels*sizeof(*new_tree->costs));
 
     return new_tree;
 }
 
 static int netloc_arch_tree_destruct(netloc_arch_tree_t *tree)
 {
-    free(tree->cost);
+    free(tree->costs);
     free(tree->degrees);
     free(tree);
 
@@ -702,10 +702,10 @@ partition_topology_to_tleaf(netloc_partition_t *partition, int num_cores,
     tree->degrees = max_down_degrees_by_level;
 
     int network_coeff = 2;
-    tree->cost = (NETLOC_int *)malloc(sizeof(NETLOC_int[tree->num_levels]));
-    tree->cost[tree->num_levels-1] = 1;
+    tree->costs = (NETLOC_int *)malloc(sizeof(NETLOC_int[tree->num_levels]));
+    tree->costs[tree->num_levels-1] = 1;
     for (int i = tree->num_levels-2; i >= 0 ; i--) {
-        tree->cost[i] = tree->cost[i+1]*network_coeff;
+        tree->costs[i] = tree->costs[i+1]*network_coeff;
     }
 
     /* Now we have the degree of each node, so we can complete the topology to
@@ -827,7 +827,7 @@ int netloc_arch_destruct(netloc_arch_t *arch)
 
     if (arch->arch.node_tree) {
         free(arch->arch.node_tree->degrees);
-        free(arch->arch.node_tree->cost);
+        free(arch->arch.node_tree->costs);
         free(arch->arch.node_tree);
     }
     if (arch->current_hosts)

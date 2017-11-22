@@ -488,8 +488,18 @@ static xml_doc_ptr xml_node_read_file(const char *path)
                     buff += 1;
                 } else {
                     char *end = NULL, *eend = NULL;
-                    /* There should not be any space in attributes */
-                    end = strchr(buff, ' '); eend = strchr(buff, '>');
+                    /* There should not be any new line in attributes */
+                    end  = strchr(buff, ' ');
+                    /* Find the second quote position */
+                    eend = strchr(strchrnul(buff, '"'), '"');
+                    /* Find the first between attribute-separating space and
+                       attribute-closing quote */
+                    if (end && eend && end < eend) {
+                        /* end points to a quoted space.
+                           Find one that is not enclosed */
+                        end = strchr(eend, ' ');
+                    }
+                    eend = strchr(buff, '>');
                     if ((end && eend && end < eend) || (end && !eend)) {
                         /* Multiple arguments */
                         *end = '\0';
@@ -497,10 +507,16 @@ static xml_doc_ptr xml_node_read_file(const char *path)
                         *end = ' '; buff = end + 1;
                     } else if ((end && eend && end > eend) || (!end && eend)) {
                         /* Last argument */
-                        *eend = '\0';
-                        xml_node_attr_load(crt_node, buff);
-                        *eend = '>'; buff = eend + 1;
-                        parse_attr = 0;
+                        if ('/' == *(end = eend - 1)) {
+                            /* Self closing ? */
+                            *end = '\0';
+                            xml_node_attr_load(crt_node, buff);
+                            *end = '/'; buff = end;
+                        } else {
+                            *eend = '\0';
+                            xml_node_attr_load(crt_node, buff);
+                            *eend = '>'; buff = eend;
+                        }
                     } else  {
                         /* Da Fuck iz dat kaïz ? */
                         assert(0);
@@ -835,7 +851,9 @@ netloc_part_xml_load(xml_node_ptr part, char *hwloc_path,
     /* Check for <explicit> tag */
     if (!part->children.num
         || !(explicit_node = (xml_node_ptr) part->children.data[0])
-        || 0 != strcmp("explicit", explicit_node->name)) {
+        || (0 != strcmp("explicit", explicit_node->name)
+            && (!(explicit_node = (xml_node_ptr) part->children.data[1])
+                || 0 != strcmp("explicit", explicit_node->name)))) {
         if (netloc__xml_verbose())
             fprintf(stderr, "WARN: no \"explicit\" tag.\n");
         return partition;

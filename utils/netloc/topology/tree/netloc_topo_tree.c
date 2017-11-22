@@ -218,10 +218,10 @@ partition_topology_to_tleaf(netloc_partition_t *partition, netloc_arch_t *arch)
     tree->degrees = max_down_degrees_by_level;
 
     int network_coeff = 2;
-    tree->cost = (NETLOC_int *)malloc(sizeof(NETLOC_int[tree->num_levels]));
-    tree->cost[tree->num_levels-1] = 1;
+    tree->costs = (NETLOC_int *)malloc(sizeof(NETLOC_int[tree->num_levels]));
+    tree->costs[tree->num_levels-1] = 1;
     for (int i = tree->num_levels-2; i >= 0 ; i--) {
-        tree->cost[i] = tree->cost[i+1]*network_coeff;
+        tree->costs[i] = tree->costs[i+1]*network_coeff;
     }
 
     /* Now we have the degree of each node, so we can complete the topology to
@@ -297,6 +297,4 @@ int netloc_topo_arch_build(netloc_arch_t *arch, netloc_partition_t *part)
     }
 
     return partition_topology_to_tleaf(part, arch);
-    
-    return NETLOC_SUCCESS;
 }

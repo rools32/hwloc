@@ -70,6 +70,7 @@ struct utils_node_t {
 
 struct utils_partition_t {
     char *name;
+    netloc_arch_t *arch;  /* Abstract topology */
     UT_array *nodes;
 };
 
@@ -129,7 +130,7 @@ static inline int edge_is_virtual(const utils_edge_t *edge)
 }
 
 extern int
-netloc_write_into_xml_file(utils_node_t *nodes, const UT_array *partitions,
+netloc_write_into_xml_file(utils_node_t *nodes, UT_array *partitions,
                            const char *subnet, const char *path,
                            const char *hwlocpath,
                            const netloc_network_type_t transportType);

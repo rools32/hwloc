@@ -161,6 +161,7 @@ struct netloc_partition_t {
     UT_hash_handle hh;    /* makes this structure hashable with name */
     unsigned int id;      /* rank in hashtable linked list */
     char *name;           /* Partition's name */
+    netloc_arch_t *arch;  /* Abstract topology */
     UT_array *nodes;      /* Array of partition nodes */
     UT_array *edges;      /* Array of partition edges */
 };

@@ -301,6 +301,54 @@ insert_extra(xml_node_ptr network_node, char *full_hwloc_path,
     return NETLOC_SUCCESS;
 }
 
+static inline int
+insert_arch(xml_node_ptr partition_node, const netloc_arch_t *arch)
+{
+    int strBuffSize = 0, strBuffSize2 = 0;
+    char *strBuff = NULL;
+    xml_node_ptr topology_node = xml_node_child_new(partition_node, NULL,
+                                                    BAD_CAST "topology", NULL);
+    /* TODO: do sub architectures with a while loop.*/
+    xml_node_ptr topo_node = xml_node_child_new(topology_node, NULL,
+                                                BAD_CAST "topo", NULL);
+    /* TODO: translate from arch->type to proper type */
+    xml_node_attr_add(topo_node, BAD_CAST "type", BAD_CAST "tree");
+    /* TODO check num_levels > 1 */
+    NETLOC_int nlevels = arch->arch.node_tree->num_levels;
+    strBuffSize = asprintf(&strBuff, "%" PRId64, nlevels + 1);
+    xml_node_attr_cpy_add(topo_node, BAD_CAST "ndims", strBuff);
+    free(strBuff); strBuffSize = 0;
+
+    /* Compute a upper bound for the list size */
+    NETLOC_int max_degree = arch->arch.node_tree->degrees[0];
+    NETLOC_int max_cost = arch->arch.node_tree->costs[0];
+    for (NETLOC_int level = 1; level < nlevels; ++level) {
+        if (arch->arch.node_tree->degrees[level] > max_degree)
+            max_degree = arch->arch.node_tree->degrees[level];
+        if (arch->arch.node_tree->costs[level] > max_cost)
+            max_cost = arch->arch.node_tree->costs[level];
+    }
+    int max_degree_list = max_degree * snprintf(NULL, 0, " %" PRId64,
+                                                max_degree);
+    int max_cost_list = max_cost * snprintf(NULL, 0, " %" PRId64, max_cost);
+
+    strBuff = (char *) malloc(sizeof(char[max_degree_list + max_cost_list +1]));
+    for (NETLOC_int level = 0; level < nlevels; ++level) {
+        strBuffSize += sprintf(strBuff + strBuffSize, "%" PRId64 " ",
+                               arch->arch.node_tree->degrees[level]);
+        strBuffSize2 += sprintf(strBuff + max_degree_list + strBuffSize2 + 1,
+                                "%" PRId64 " ",
+                                arch->arch.node_tree->costs[level]);
+    }
+    strBuff[strBuffSize - 1] = '\0';
+    strBuff[max_degree_list + strBuffSize2] = '\0';
+    xml_node_attr_cpy_add(topo_node, BAD_CAST "dims", strBuff);
+    xml_node_attr_cpy_add(topo_node, BAD_CAST "costs",
+                          strBuff + max_degree_list + 1);
+    free(strBuff); strBuffSize = 0; strBuffSize2 = 0;
+    return NETLOC_SUCCESS;
+}
+
 int netloc_write_xml_file(utils_node_t *nodes, const UT_array *partitions,
                           const char *subnet, const char *path,
                           const char *hwlocpath,
@@ -371,6 +419,12 @@ int netloc_write_xml_file(utils_node_t *nodes, const UT_array *partitions,
             xml_node_attr_cpy_add(part_node, BAD_CAST "name",
                                   (*ppartition)->name);
         }
+
+        /* Add arch */
+        netloc_arch_t *arch = (*ppartition)->arch;
+        if (arch)
+            insert_arch(part_node, arch);
+
         /* Add explicit */
         explicit_node = xml_node_child_new(part_node, NULL,
                                         BAD_CAST "explicit", NULL);

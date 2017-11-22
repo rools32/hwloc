@@ -346,7 +346,9 @@ netloc_part_xml_load(xmlNodePtr part, char *hwloc_path,
 
     /* Check for <explicit> tag */
     if (!(explicit_node = part->children)
-        || 0 != strcmp("explicit", (char *)explicit_node->name)) {
+        || (0 != strcmp("explicit", (char *)explicit_node->name)
+            && (!(explicit_node = explicit_node->next)
+                || 0 != strcmp("explicit", (char *)explicit_node->name)))) {
         if (netloc__xml_verbose())
             fprintf(stderr, "WARN: no \"explicit\" tag.\n");
     }

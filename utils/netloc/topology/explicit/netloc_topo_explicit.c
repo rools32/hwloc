@@ -438,7 +438,7 @@ static inline void set_reverse_edges(utils_node_t *nodes)
 #endif /* NETLOC_DEBUG */
 }
 
-int netloc_write_into_xml_file(utils_node_t *nodes, const UT_array *partitions,
+int netloc_write_into_xml_file(utils_node_t *nodes, UT_array *partitions,
                                const char *subnet, const char *path,
                                const char *hwlocpath,
                                const netloc_network_type_t transportType)
@@ -460,18 +460,33 @@ int netloc_write_into_xml_file(utils_node_t *nodes, const UT_array *partitions,
         arch->topology = topo;
         int ret = netloc_topo_arch_build(arch, part);
 
-        if (NETLOC_SUCCESS == ret)
-            printf("%s is a tree\n",part->name);
-
         arch->topology = NULL;
-        netloc_arch_destruct(arch);
+
+        if (NETLOC_SUCCESS == ret) {
+            fprintf(stderr, "%s is a tree\n", part->name);
+            part->arch = arch;
+        } else {
+            part->arch = NULL;
+            netloc_arch_destruct(arch);
+        }
+    }
+
+    for (unsigned p = 0; p < utarray_len(partitions); ++p) {
+        utils_partition_t *part = *(utils_partition_t **)
+            utarray_eltptr(partitions, p);
+        netloc_partition_t *netloc_part = NULL;
+        HASH_FIND_STR(topo->partitions, part->name, netloc_part);
+        part->arch = netloc_part->arch;
     }
 
     ret = netloc_write_xml_file(nodes, partitions, subnet, path,
                                 hwlocpath, transportType);
 
-    /* Free the network_explicit_t topo */
-    netloc_arch_destruct(arch);
+    HASH_ITER(hh, topo->partitions, part, part_tmp) {
+        /* Free the network_explicit_t topo */
+        if (part->arch)
+            netloc_arch_destruct(part->arch);
+    }
 
     /* Untangle similar nodes so the virtualization is transparent */
     utils_node_t *node, *node_tmp;

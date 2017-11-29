@@ -68,4 +68,4 @@ int netloc_network_explicit_xml_load(const char *path,
     return netloc_network_explicit_nolibxml_load(path, ptopology);
 }
 
-#endif
+#endif /* defined(HWLOC_HAVE_LIBXML2) */

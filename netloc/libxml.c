@@ -116,10 +116,6 @@ static netloc_physical_link_t *
 netloc_physical_link_xml_load(xmlNode *it_link, netloc_edge_t *edge,
                               netloc_partition_t *partition);
 
-static xmlDoc *netloc_xml_reader_init(const char *path);
-
-static int netloc_xml_reader_clean_and_out(xmlDoc *doc);
-
 int netloc_network_explicit_libxml_load(const char *path,
                                         netloc_network_explicit_t **ptopology)
 {
@@ -144,7 +140,7 @@ int netloc_network_explicit_libxml_load(const char *path,
     if (NULL == topology)
         return NETLOC_ERROR;
 
-    xmlDocPtr doc = netloc_xml_reader_init(path);
+    xmlDocPtr doc = xml_reader_init(path);
     if (NULL == doc) {
         return (netloc_network_explicit_destruct(topology), NETLOC_ERROR_NOENT);
     }
@@ -310,7 +306,7 @@ int netloc_network_explicit_libxml_load(const char *path,
  clean_and_out:
     free(subnet);
     free(hwlocpath);
-    netloc_xml_reader_clean_and_out(doc);
+    xml_reader_clean_and_out(doc);
     *ptopology = topology;
     
     return ret;
@@ -380,8 +376,8 @@ netloc_part_xml_load(xmlNodePtr part, char *hwloc_path,
                     nnodes);
         return partition;
     }
-    for (xmlNodePtr it_node = nodes_node->children; it_node;
-         it_node = it_node->next) {
+    xmlNodePtr it_node;
+    for (it_node = nodes_node->children; it_node; it_node = it_node->next) {
         netloc_node_t *node = NULL;
         /* Prefetch physical_id to know if it's worth loading the node */
         buff = xmlGetProp(it_node, BAD_CAST "mac_addr");
@@ -435,8 +431,8 @@ netloc_part_xml_load(xmlNodePtr part, char *hwloc_path,
                 fprintf(stderr, "WARN: no \"connexions\" tag.\n");
         return partition;
     }
-    for (xmlNodePtr it_edge = edges_node->children; it_edge;
-         it_edge = it_edge->next) {
+    xmlNodePtr it_edge;
+    for (it_edge = edges_node->children; it_edge; it_edge = it_edge->next) {
         netloc_edge_t *edge =
             netloc_edge_xml_load(it_edge, topology, partition);
         if (partition && edge) {
@@ -527,7 +523,7 @@ netloc_node_xml_load(xmlNodePtr it_node, char *hwlocpath,
             hwloc_topo->path = strdup(strBuff);
             hwloc_topo->hwloc_topo_idx = hwloc_topo_idx;
             node->hwloc_topo_idx = hwloc_topo_idx;
-            ++hwloc_topo_idx;
+            hwloc_topo_idx += 1;
             HASH_ADD_STR(*hwloc_topos, path, hwloc_topo);
         } else {
             node->hwloc_topo_idx = hwloc_topo->hwloc_topo_idx;
@@ -573,11 +569,10 @@ netloc_node_xml_load(xmlNodePtr it_node, char *hwlocpath,
             return NULL;
         }
         unsigned int subnode_id = 0;
-        for (xmlNodePtr it_subnode = tmp->children;
-             it_subnode;
-             it_subnode = it_subnode->next) {
+        xmlNodePtr it_sub;
+        for (it_sub = tmp->children; it_sub; it_sub = it_sub->next) {
             netloc_node_t *subnode =
-                netloc_node_xml_load(it_subnode, hwlocpath, hwloc_topos);
+                netloc_node_xml_load(it_sub, hwlocpath, hwloc_topos);
             if (subnode)
                 subnode->virtual_node = node;
             node->subnodes[subnode_id++] = subnode;
@@ -657,9 +652,10 @@ netloc_edge_xml_load(xmlNodePtr it_edge, netloc_network_explicit_t *topology,
         /* Set partition */
         if (partition) {
             utarray_push_back(edge_tmp->partitions, &partition);
-            for (unsigned int se = 0; se < edge_tmp->nsubedges; ++se)
+            for (unsigned int se = 0; se < edge_tmp->nsubedges; ++se) {
                 utarray_push_back(edge_tmp->subnode_edges[se]->partitions,
                                   &partition);
+            }
         }
         /* Edge already created from another partition */
         netloc_edge_destruct(edge);
@@ -694,11 +690,10 @@ netloc_edge_xml_load(xmlNodePtr it_edge, netloc_network_explicit_t *topology,
             malloc(sizeof(netloc_edge_t *[nsubedges]));
         xmlFree(buff); buff = NULL; strBuff = NULL;
         unsigned int se = 0;
-        for(xmlNodePtr it_subedge = tmp->children;
-                it_subedge;
-                it_subedge = it_subedge->next) {
+        xmlNodePtr it_sub;
+        for (it_sub = tmp->children; it_sub; it_sub = it_sub->next) {
             netloc_edge_t *subedge =
-                netloc_edge_xml_load(it_subedge, topology, partition);
+                netloc_edge_xml_load(it_sub, topology, partition);
             edge->subnode_edges[se++] = subedge;
             if (!subedge) {
                 if (netloc__xml_verbose())
@@ -723,9 +718,7 @@ netloc_edge_xml_load(xmlNodePtr it_edge, netloc_network_explicit_t *topology,
         }
         xmlNodePtr it_link;
         netloc_physical_link_t *link = NULL;
-        for (it_link = crt_node->children;
-             it_link;
-             it_link = it_link->next) {
+        for (it_link = crt_node->children; it_link; it_link = it_link->next) {
             link = netloc_physical_link_xml_load(it_link, edge, partition);
             if (link) {
                 total_gbits -= link->gbits;
@@ -859,7 +852,7 @@ netloc_physical_link_xml_load(xmlNodePtr it_link, netloc_edge_t *edge,
     return NULL;
 }
 
-static xmlDoc *netloc_xml_reader_init(const char *path)
+xml_doc_ptr xml_reader_init(const char *path)
 {
     xmlDoc *doc = NULL;
 
@@ -880,7 +873,7 @@ static xmlDoc *netloc_xml_reader_init(const char *path)
     return doc;
 }
 
-static int netloc_xml_reader_clean_and_out(xmlDoc *doc)
+int xml_reader_clean_and_out(xml_doc_ptr doc)
 {
     /* Free the document */
     xmlFreeDoc(doc);
@@ -895,6 +888,10 @@ static int netloc_xml_reader_clean_and_out(xmlDoc *doc)
     return NETLOC_SUCCESS;
 }
 
+xml_node_ptr xml_doc_get_root_element(const xml_doc_ptr doc)
+{
+    return xmlDocGetRootElement(doc);
+}
 
 /******************************************************************************/
 /* Export */

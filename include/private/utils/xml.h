@@ -56,8 +56,9 @@ typedef struct xml_doc_t * xml_doc_ptr;
 
 #define XML_LIB_CHECK_VERSION do { /* do nothing */ } while (0)
 
-#endif
+#endif /* HWLOC_HAVE_LIBXML2 */
 
+/******************************************************************************/
 /* Public API for XML file export */
 
 extern void xml_char_free(xml_char *string);
@@ -103,5 +104,14 @@ extern void
 xml_dtd_subset_create(xml_doc_ptr doc, const xml_char *name,
                       const xml_char *externid __netloc_attribute_unused,
                       const xml_char *systemid);
+
+/******************************************************************************/
+/* Public API for XML file import */
+
+extern xml_doc_ptr xml_reader_init(const char *path);
+
+extern int xml_reader_clean_and_out(xml_doc_ptr doc);
+
+extern xml_node_ptr xml_doc_get_root_element(const xml_doc_ptr doc);
 
 #endif /* _UTILS_XML_H_ */

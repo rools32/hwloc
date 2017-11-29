@@ -65,7 +65,7 @@ static void contents_add(contents_t *contents, void *data)
         }
     }
     contents->data[contents->num] = data;
-    ++contents->num;
+    contents->num += 1;
 }
 
 static void contents_merge(contents_t *dest, const contents_t *src)
@@ -343,6 +343,11 @@ static inline char *next_attr(char *buffer)
         return NULL;
 }
 
+xml_node_ptr xml_doc_get_root_element(const xml_doc_ptr doc)
+{
+    return doc->root;
+}
+
 static xml_doc_ptr xml_node_read_file(const char *path)
 {
     size_t n = 0;
@@ -356,7 +361,7 @@ static xml_doc_ptr xml_node_read_file(const char *path)
     if (!in) return NULL;
     size_t cpt = 0;
     while (-1 != (read = getline(&line, &n, in))) {
-        ++cpt;
+        cpt += 1;
         for (buff = ignore_spaces(line); buff < line + read;
              buff = ignore_spaces(buff)) {
 
@@ -415,7 +420,7 @@ static xml_doc_ptr xml_node_read_file(const char *path)
                     } else if ((end && eend && end > eend) || (!end && eend)) {
                         /* No attribute */
                         if ('/' == *(eend - 1))
-                            --eend;
+                            eend -= 1;
                         *eend = '\0';
                         new = xml_node_new(NULL, buff);
                         *eend = *(eend + 1) == '>' ? '/' : '>';
@@ -535,6 +540,17 @@ static xml_doc_ptr xml_node_read_file(const char *path)
     fclose(in);
     xml_doc_free(doc);
     return NULL;
+}
+
+xml_doc_ptr xml_reader_init(const char *path)
+{
+    return xml_node_read_file(path);
+}
+
+int xml_reader_clean_and_out(xml_doc_ptr doc)
+{
+    xml_doc_free(doc);
+    return NETLOC_SUCCESS;
 }
 
 /******************************************************************************/
@@ -679,7 +695,7 @@ int netloc_network_explicit_nolibxml_load(const char *path,
             if (netloc__xml_verbose())
                 fprintf(stderr, "WARN: unable to read hwloc path in %s\n",
                         path);
-            --net_id;
+            net_id -= 1;
         }
         if (net_id < machine_node->children.num) {
             /* Find machine topology root_node */
@@ -1045,7 +1061,7 @@ netloc_node_xml_load(xml_node_ptr it_node, char *hwlocpath,
             hwloc_topo->path = strdup(strBuff);
             hwloc_topo->hwloc_topo_idx = hwloc_topo_idx;
             node->hwloc_topo_idx = hwloc_topo_idx;
-            ++hwloc_topo_idx;
+            hwloc_topo_idx += 1;
             HASH_ADD_STR(*hwloc_topos, path, hwloc_topo);
         } else {
             node->hwloc_topo_idx = hwloc_topo->hwloc_topo_idx;
@@ -1090,8 +1106,8 @@ netloc_node_xml_load(xml_node_ptr it_node, char *hwlocpath,
             netloc_node_destruct(node);
             return NULL;
         }
-        for (size_t subnode_id = 0;
-             subnode_id < tmp->children.num; ++subnode_id) {
+        size_t subnode_id;
+        for (subnode_id = 0; subnode_id < tmp->children.num; ++subnode_id) {
             xml_node_ptr it_subnode = tmp->children.data[subnode_id];
             netloc_node_t *subnode =
                 netloc_node_xml_load(it_subnode, hwlocpath, hwloc_topos);
@@ -1173,9 +1189,10 @@ netloc_edge_xml_load(xml_node_ptr it_edge, netloc_network_explicit_t *topology,
         /* Set partition */
         if (partition) {
             utarray_push_back(edge_tmp->partitions, &partition);
-            for (unsigned int se = 0; se < edge_tmp->nsubedges; ++se)
+            for (unsigned int se = 0; se < edge_tmp->nsubedges; ++se) {
                 utarray_push_back(edge_tmp->subnode_edges[se]->partitions,
                                   &partition);
+            }
         }
         /* Edge already created from another partition */
         netloc_edge_destruct(edge);

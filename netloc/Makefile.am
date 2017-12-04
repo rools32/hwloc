@@ -8,6 +8,9 @@
 #
 
 if BUILD_NETLOC
+
+SUBDIRS = topos
+
 AM_CPPFLAGS = \
         $(NETLOC_CPPFLAGS) \
         $(HWLOC_CPPFLAGS)
@@ -23,13 +26,9 @@ endif
 
 sources = \
         support.c \
-        network_explicit.c \
-	partition.c \
-        edge.c \
-        node.c \
-        physical_link.c \
         path.c \
         architecture.c \
+		partition.c \
         hwloc.c \
         mpicomm.c \
         xml.c
@@ -39,7 +38,8 @@ sources = \
 libnetloc_la_SOURCES = $(sources)
 libnetloc_la_LDFLAGS = $(ldflags) -version-info $(libnetloc_so_version)
 libnetloc_la_LIBADD = \
-        $(top_builddir)/hwloc/libhwloc.la
+        $(top_builddir)/hwloc/libhwloc.la \
+		topos/explicit/libnetloc_topos_explicit.la
 
 # Embedded library (note the lack of a .so version number -- that
 # intentionally only appears in the installable library).  Also note
@@ -49,7 +49,8 @@ libnetloc_la_LIBADD = \
 libnetloc_embedded_la_SOURCES = $(sources)
 libnetloc_embedded_la_LDFLAGS = $(ldflags)
 libnetloc_embedded_la_LIBADD = \
-        $(HWLOC_top_builddir)/hwloc/libhwloc_embedded.la
+        $(HWLOC_top_builddir)/hwloc/libhwloc_embedded.la \
+		topos/explicit/libnetloc_topos_explicit.la
 
 # Add the proper xml reader whether LIBXML2 is available or not
 

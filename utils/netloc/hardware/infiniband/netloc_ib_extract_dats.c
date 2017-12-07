@@ -29,17 +29,10 @@
 #include <fcntl.h>
 #include <string.h>
 
-unsigned long long int global_link_idx = 0;
-
-route_source_t *routes = NULL;
-path_source_t *paths = NULL;
-
-static int read_routes(char *subnet, char *path, char *route_filename);
+static int read_routes(route_source_t **proutes, char *subnet, char *path,
+        char *route_dirname);
 static int read_discover(char *subnet, char *discover_path,
                          char *filename, utils_node_t **nodes);
-static int
-write_into_file(char *subnet, char *path, char *hwlocpath,
-                utils_node_t *nodes, UT_array *partitions);
 
 static void
 get_match(char *line, int nmatch, regmatch_t pmatch[], char *matches[])
@@ -172,9 +165,10 @@ static float compute_gbits(char *speed, char *width)
     return x*gb_per_x;
 }
 
-int build_paths(utils_node_t *nodes)
+int build_paths(path_source_t **ppaths, utils_node_t *nodes, route_source_t *routes)
 {
     utils_node_t *node_src, *node_dest, *node_tmp1, *node_tmp2;
+    path_source_t *paths = *ppaths;
     HASH_ITER(hh, nodes, node_src, node_tmp1) {
         if (node_src->type != NETLOC_NODE_TYPE_HOST)
             continue;
@@ -249,6 +243,7 @@ int build_paths(utils_node_t *nodes)
             }
         }
     }
+    *ppaths = paths;
     return 0;
 }
 
@@ -359,7 +354,7 @@ netloc_network_explicit_find_partitions(utils_node_t *nodes,
 
 static int
 netloc_network_explicit_set_partitions(utils_node_t *nodes,
-                                       UT_array *partitions)
+        UT_array *partitions, path_source_t *paths)
 {
     /* Find the main partition for each node */
     netloc_network_explicit_find_partitions(nodes, partitions);
@@ -431,6 +426,9 @@ int main(int argc, char **argv)
     char *prog_name = basename(argv[0]);
     char *inpath = NULL, *outpath = NULL, *hwlocpath = NULL;
     utils_node_t *nodes = NULL;
+    route_source_t *routes = NULL;
+    path_source_t *paths = NULL;
+
     UT_array partitions;
 
     if (argc != 2 && argc != 3 && argc != 5) {
@@ -519,7 +517,6 @@ int main(int argc, char **argv)
 
         subnet_found = !(regexec(&subnet_regexp, filename, 0, NULL, 0));
         if (subnet_found) {
-            global_link_idx = 0;
             char *discover_filename;
             char *route_filename;
             char *subnet;
@@ -546,7 +543,7 @@ int main(int argc, char **argv)
                     char *route_filename;
                     if (0 > asprintf(&route_filename, "ibroutes-%s", subnet))
                         route_filename = NULL;
-                    read_routes(subnet, inpath, route_filename);
+                    read_routes(&routes, subnet, inpath, route_filename);
                     free(route_filename);
                 } else {
                     printf("No route directory found for subnet %s\n", subnet);
@@ -554,8 +551,8 @@ int main(int argc, char **argv)
             }
             free(route_filename);
 
-            build_paths(nodes);
-            netloc_network_explicit_set_partitions(nodes, &partitions);
+            build_paths(&paths, nodes, routes);
+            netloc_network_explicit_set_partitions(nodes, &partitions, paths);
 
             /* Write the XML file */
             netloc_write_into_xml_file(nodes, &partitions, subnet, outpath,
@@ -650,8 +647,8 @@ error_param:
     return 1;
 }
 
-int
-read_discover(char *subnet, char *path, char *filename, utils_node_t **nodes)
+int read_discover(char *subnet, char *path,
+        char *filename, utils_node_t **nodes)
 {
     char *line = NULL;
     size_t size = 0;
@@ -698,6 +695,7 @@ read_discover(char *subnet, char *path, char *filename, utils_node_t **nodes)
             REG_EXTENDED);
 
     int read;
+    unsigned long long int global_link_idx = 0;
     errno = 0; /* getline can return -1 even if no error (EOF) */
     while ((read = getline(&line, &size, discover_file)) > 0) {
         const int link_nfields = 12;
@@ -891,9 +889,10 @@ read_discover(char *subnet, char *path, char *filename, utils_node_t **nodes)
     return 0;
 }
 
-int read_routes(char *subnet, char *path, char *route_dirname)
+int read_routes(route_source_t **proutes, char *subnet, char *path, char *route_dirname)
 {
     char *route_path;
+    route_source_t *routes = *proutes;
     DIR *dir;
 
     if (0 > asprintf(&route_path, "%s/%s", path, route_dirname))
@@ -995,6 +994,7 @@ int read_routes(char *subnet, char *path, char *route_dirname)
 
     free(route_path);
     closedir(dir);
+    *proutes = routes;
 
     return NETLOC_SUCCESS;
 }

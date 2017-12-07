@@ -102,7 +102,6 @@ typedef struct {
     char physical_id[MAX_STR]; /* key */
     route_dest_t *dest;
 } route_source_t;
-extern route_source_t *routes;
 
 /* Paths tables */
 typedef struct {
@@ -117,7 +116,6 @@ typedef struct {
     utils_node_t *node;
     path_dest_t *dest;
 } path_source_t;
-extern path_source_t *paths;
 
 static inline int node_is_virtual(const utils_node_t *node)
 {

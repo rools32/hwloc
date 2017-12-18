@@ -888,11 +888,6 @@ int xml_reader_clean_and_out(xml_doc_ptr doc)
     return NETLOC_SUCCESS;
 }
 
-xml_node_ptr xml_doc_get_root_element(const xml_doc_ptr doc)
-{
-    return xmlDocGetRootElement(doc);
-}
-
 /******************************************************************************/
 /* Export */
 /******************************************************************************/

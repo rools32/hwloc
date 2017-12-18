@@ -28,8 +28,9 @@ sources = \
         support.c \
         path.c \
         architecture.c \
-		partition.c \
+        partition.c \
         hwloc.c \
+        load.c \
         mpicomm.c \
         xml.c
 

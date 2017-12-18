@@ -56,6 +56,17 @@ typedef struct xml_doc_t * xml_doc_ptr;
 
 #define XML_LIB_CHECK_VERSION do { /* do nothing */ } while (0)
 
+/******************************************************************************/
+/* Private API for XML file import */
+xml_doc_ptr xml_node_read_file(const char *path);
+xml_node_ptr xml_doc_get_root_element(const xml_doc_ptr doc);
+char *xml_node_get_name(const xml_node_ptr node);
+size_t xml_node_get_num_children(const xml_node_ptr node);
+int xml_node_has_child_data(const xml_node_ptr node);
+xml_node_ptr xml_node_get_child(const xml_node_ptr node, int idx);
+xml_char *xml_node_get_content(const xml_node_ptr node);
+char *xml_node_attr_get(xml_node_ptr node, const char *attrname);
+
 #endif /* HWLOC_HAVE_LIBXML2 */
 
 /******************************************************************************/
@@ -111,7 +122,5 @@ xml_dtd_subset_create(xml_doc_ptr doc, const xml_char *name,
 extern xml_doc_ptr xml_reader_init(const char *path);
 
 extern int xml_reader_clean_and_out(xml_doc_ptr doc);
-
-extern xml_node_ptr xml_doc_get_root_element(const xml_doc_ptr doc);
 
 #endif /* _UTILS_XML_H_ */

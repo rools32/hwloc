@@ -146,6 +146,7 @@ static inline void xml_node_empty(xml_node_ptr node)
 
 void xml_node_free(xml_node_ptr node)
 {
+    if (NULL == node) return;
     xml_node_empty(node);
     xml_node_destruct(node);
 }
@@ -327,15 +328,19 @@ int xml_doc_write(const char *outpath, xml_doc_ptr doc, const char *enc,
 /* Import */
 /******************************************************************************/
 
-static inline char *ignore_spaces(char *buffer)
+static inline char *ignore_spaces(const char *buffer)
 {
-  return buffer + strspn(buffer, " \t\n");
+    return (char *)buffer + strspn(buffer, " \t\n");
 }
 
-static inline char *next_attr(char *buffer)
+static inline char *next_attr(const char *buffer)
 {
     char *next = ignore_spaces(buffer);
-    if (0 < strspn(buffer, "abcdefghijklmnopqrstuvwxyz_"))
+    if (0 < strspn(next, "0123456789-."))
+        /* Attribute must start with letter or _ */
+        return NULL;
+    else if (0 < strspn(next, "abcdefghijklmnopqrstuvwxyz"
+                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789-."))
         return next;
     else
         return NULL;

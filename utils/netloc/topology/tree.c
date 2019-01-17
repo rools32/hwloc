@@ -1,3 +1,4 @@
+#include <netloc.h>
 #include "tree.h"
 
 typedef struct netloc_analysis_data_t {

@@ -81,6 +81,7 @@ netloc_node_t * netloc_node_construct(void)
     }
     memset(node, 0, sizeof(netloc_node_t));
     node->logical_id = -1;
+    node->deco_position = -1;
     node->type = NETLOC_NODE_TYPE_INVALID;
     utarray_init(&node->physical_links, &ut_ptr_icd);
     node->hwloc_topo_idx = -1;

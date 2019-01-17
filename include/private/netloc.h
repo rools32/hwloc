@@ -27,6 +27,9 @@ typedef struct netloc_machine_t netloc_machine_t;
 struct netloc_partition_t;
 typedef struct netloc_partition_t netloc_partition_t;
 
+struct netloc_deco_t;
+typedef struct netloc_deco_t netloc_deco_t;
+
 struct netloc_topology_t;
 typedef struct netloc_topology_t netloc_topology_t;
 
@@ -170,6 +173,8 @@ struct netloc_explicit_t {
     netloc_node_t *nodes; /* hash table of nodes by name
                              // TODO add by physical id */
     netloc_physical_link_t *physical_links; /* hash table of nodes by name and by physical id */
+
+    netloc_deco_t *deco;
 };
 
 struct netloc_partition_t {
@@ -181,6 +186,13 @@ struct netloc_partition_t {
     char *partition_name;
     int num_hosts;
     netloc_topology_t *topology;
+};
+
+struct netloc_deco_t {
+    int nnodes;
+    int *edge_idx;
+    int *edges;
+    int *edge_costs;
 };
 
 struct netloc_topology_t {
@@ -241,6 +253,7 @@ struct netloc_node_t {
     };
 
     netloc_position_t *newtopo_positions; /* Postition in topology in partition */
+    int deco_position; /* Position in deco topology */
 
     // netloc_path_t *paths; // TODO
 
@@ -343,7 +356,7 @@ struct netloc_hwloc_topology_t {
 
 
 
-netloc_machine_t *netloc_machine_construct(const char *topopath);
+netloc_machine_t *netloc_machine_construct(char *topopath);
 
 int netloc_machine_add_partitions(netloc_machine_t *machine,
         int npartitions, netloc_partition_t *partitions);

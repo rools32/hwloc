@@ -10,7 +10,7 @@
 
 if BUILD_NETLOC
 
-SUBDIRS = xml
+#SUBDIRS = xml export
 
 AM_CPPFLAGS = \
         $(NETLOC_CPPFLAGS) \

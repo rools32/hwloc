@@ -332,10 +332,10 @@ EOF
 
         hwloc_config_prefix[netloc/Makefile]
         hwloc_config_prefix[netloc/xml/Makefile]
+        hwloc_config_prefix[netloc/export/Makefile]
         hwloc_config_prefix[utils/netloc/export/draw/Makefile]
         hwloc_config_prefix[utils/netloc/export/Makefile]
         hwloc_config_prefix[utils/netloc/export/scotch/Makefile]
-        hwloc_config_prefix[utils/netloc/export/xml/Makefile]
         hwloc_config_prefix[utils/netloc/hardware/explicit/Makefile]
         hwloc_config_prefix[utils/netloc/hardware/infiniband/Makefile]
         hwloc_config_prefix[utils/netloc/hardware/Makefile]

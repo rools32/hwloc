@@ -21,6 +21,7 @@ int netloc_arch_build(netloc_machine_t *machine)
 {
     // XXX TODO choose right function depending on network
     partition_topology_to_tleaf(machine);
+    //partition_topology_to_deco(machine);
 
     return NETLOC_SUCCESS;
 }
